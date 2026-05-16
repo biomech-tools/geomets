@@ -803,6 +803,61 @@ function getNowForFilename() {
 
 
 /* ================================
+   著作権警告（30日サイクル）
+================================ */
+window.addEventListener("load", () => {
+  const lastShown = localStorage.getItem("warningLastShown");
+  const now = Date.now();
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  if (!lastShown || now - lastShown > THIRTY_DAYS) {
+    alert("CAUTION: This tool is protected by copyright (©2026 A. Azuma. All Rights Reserved). Unauthorized downloading, copying, or redistribution is prohibited.\n注意：本ツールは著作権により保護されています (©2026 A. Azuma. All Rights Reserved)．無断でのダウンロード，複製，再配布を禁じます．");
+    localStorage.setItem("warningLastShown", now);
+  }
+});
+
+/* ================================
+   不正利用抑止（右クリック・ショートカット無効化）
+================================ */
+
+// 右クリック禁止（Canvas 操作には影響なし）
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// 特定のショートカットだけ無効化
+document.addEventListener('keydown', e => {
+  // Ctrl+S（保存）
+  if (e.ctrlKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+  }
+
+  // Ctrl+P（印刷）
+  if (e.ctrlKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+  }
+
+  // Ctrl+Shift+I（DevTools）
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+    e.preventDefault();
+  }
+
+  // Ctrl+Shift+C（要素検証）
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+  }
+
+  // Ctrl+Shift+J（DevTools Console）
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') {
+    e.preventDefault();
+  }
+
+  // F12（DevTools）
+  if (e.key === 'F12') {
+    e.preventDefault();
+  }
+});
+
+
+/* ================================
    グラフ表示（改良版）
 ================================ */
 let chart = null;
