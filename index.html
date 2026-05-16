@@ -118,9 +118,9 @@ label {
 }
 
 #version {
-  font-size: 0.9rem;   /* ← ここを絶対値に変更 */
+  font-size: 0.8rem;
   color: #555;
-  /* font-style: italic; */
+  margin-left: 12px;   /* ← これでスペースができる */
 }
 
 #subtitle {
@@ -129,6 +129,30 @@ label {
   margin-top: -4px;
   margin-bottom: 12px;
 }
+#title {
+  margin-top: 8px;
+  margin-bottom: 0px;
+  font-size: 2em;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* ← これが重要 */
+  gap: 10px;
+}
+
+#reloadBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #eee;
+  font-size: 16px;     /* ← これが重要（絶対値） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
 
 </style>
 </head>
@@ -136,7 +160,10 @@ label {
 <body>
 
 <h2 id="title">
-  GeoMETs <span id="version">V1.0 Beta</span>
+  <span>
+    GeoMETs <span id="version">V1.0 Beta</span>
+  </span>
+  <button id="reloadBtn">🔄</button>
 </h2>
 <div id="subtitle">地形対応 GPS 身体活動量評価ツール</div>
 
@@ -1052,7 +1079,9 @@ document.getElementById("saveGraphBtn").addEventListener("click", () => {
 });
 
 });
-
+    document.getElementById("reloadBtn").addEventListener("click", () => {
+      location.reload();
+    });
 
 </script>
 
