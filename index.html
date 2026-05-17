@@ -896,12 +896,12 @@ document.addEventListener('keydown', e => {
 
 
 /* ================================
-   グラフ表示（改良版 + 3点移動平均）
+   グラフ表示（改良版 + 1分間METs）
 ================================ */
 let chart = null;
 
-// ★★★ 3点移動平均に変更 ★★★
-function movingAverage3(arr) {
+// ★★★ 1分間METs（3点移動平均） ★★★
+function movingAverage1min(arr) {
   const out = [];
   for (let i = 0; i < arr.length; i++) {
     if (i === 0 || i === arr.length - 1) {
@@ -950,14 +950,14 @@ document.getElementById("graphBtn").addEventListener("click", () => {
   const metsRaw = res.map((r, i) => ({ x: timeMin[i], y: r.METs }));
   const altsData = res.map((r, i) => ({ x: timeMin[i], y: r.alt }));
 
-  // Raw METs の配列（移動平均用）
+  // Raw METs の配列（1分間平均用）
   const rawArray = res.map(r => r.METs);
 
-  // ★★★ 30分以上なら 3点移動平均を計算 ★★★
-  let metsMA = null;
+  // ★★★ 30分以上なら 1分間METs を計算 ★★★
+  let mets1min = null;
   if (totalMinutes >= 30) {
-    const maArray = movingAverage3(rawArray);
-    metsMA = maArray.map((v, i) => ({ x: timeMin[i], y: v }));
+    const maArray = movingAverage1min(rawArray);
+    mets1min = maArray.map((v, i) => ({ x: timeMin[i], y: v }));
   }
 
   document.getElementById("graphArea").innerHTML = `
@@ -986,11 +986,11 @@ document.getElementById("graphBtn").addEventListener("click", () => {
     yAxisID: "y1"
   });
 
-  // ★★★ 3点移動平均（濃い青） ★★★
-  if (metsMA) {
+  // ★★★ 1分間METs（濃い青） ★★★
+  if (mets1min) {
     datasets.push({
-      label: "METs (MA)",
-      data: metsMA,
+      label: "METs (1 min)",
+      data: mets1min,
       borderColor: "rgba(0, 102, 255, 1)",
       borderWidth: lineWidth + 1,
       pointRadius: 0,
