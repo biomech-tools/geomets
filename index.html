@@ -225,7 +225,7 @@ label {
 
 <script>
 /* ================================
-   i18n
+   i18n（localStorage 対応版）
 ================================ */
 const i18n = {
   ja: {
@@ -274,10 +274,10 @@ const i18n = {
 
 let currentLang = "ja";
 
+/* ★ i18n 適用 */
 function applyI18n() {
   const t = i18n[currentLang];
 
-  // 副題だけを i18n で切り替える（GeoMETs は固定）
   document.getElementById("subtitle").textContent = t.title;
 
   document.getElementById("langLabel").textContent = t.langLabel;
@@ -297,7 +297,24 @@ function applyI18n() {
     saveGraphBtn.textContent = t.saveGraph;
   }
 }
-applyI18n();
+
+/* ★ 言語切り替え時：localStorage に保存 */
+document.getElementById("langSelect").addEventListener("change", (e) => {
+  currentLang = e.target.value;
+  localStorage.setItem("lang", currentLang);
+  applyI18n();
+});
+
+/* ★ 起動時：localStorage から復元して適用 */
+window.addEventListener("load", () => {
+  const savedLang = localStorage.getItem("lang") || "ja";
+  currentLang = savedLang;
+
+  // セレクトボックスの表示も合わせる
+  document.getElementById("langSelect").value = savedLang;
+
+  applyI18n();
+});
 
 
 
