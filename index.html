@@ -913,18 +913,19 @@ document.addEventListener('keydown', e => {
 
 
 /* ================================
-   グラフ表示（改良版 + 1分間METs）
+   グラフ表示（改良版 + 2分間METs）
 ================================ */
 let chart = null;
 
-// ★★★ 1分間METs（3点移動平均） ★★★
-function movingAverage1min(arr) {
+// ★★★ 2分間METs（4点平均） ★★★
+function twoMinuteMets(arr) {
   const out = [];
   for (let i = 0; i < arr.length; i++) {
-    if (i === 0 || i === arr.length - 1) {
-      out.push(arr[i]); // 端点はそのまま
+    if (i < 3) {
+      // 最初の3点はそのまま（十分な2分間ウィンドウがないため）
+      out.push(arr[i]);
     } else {
-      out.push((arr[i - 1] + arr[i] + arr[i + 1]) / 3);
+      out.push((arr[i] + arr[i - 1] + arr[i - 2] + arr[i - 3]) / 4);
     }
   }
   return out;
@@ -956,8 +957,9 @@ document.getElementById("graphBtn").addEventListener("click", () => {
 
   const res = window.lastResult;
 
-  const labels = res.map((r, i) => ((i * 20) / 60).toFixed(1));
-  const timeMin = res.map((r, i) => (i * 20) / 60);
+  // ★ 30秒刻み（20 → 30 に変更）
+  const labels = res.map((r, i) => ((i * 30) / 60).toFixed(1));
+  const timeMin = res.map((r, i) => (i * 30) / 60);
   const totalMinutes = timeMin[timeMin.length - 1];
 
   let lineWidth = 2;
@@ -967,14 +969,14 @@ document.getElementById("graphBtn").addEventListener("click", () => {
   const metsRaw = res.map((r, i) => ({ x: timeMin[i], y: r.METs }));
   const altsData = res.map((r, i) => ({ x: timeMin[i], y: r.alt }));
 
-  // Raw METs の配列（1分間平均用）
+  // Raw METs の配列（2分間値用）
   const rawArray = res.map(r => r.METs);
 
-  // ★★★ 30分以上なら 1分間METs を計算 ★★★
-  let mets1min = null;
+  // ★★★ 30分以上なら 2分間METs を計算 ★★★
+  let mets2min = null;
   if (totalMinutes >= 30) {
-    const maArray = movingAverage1min(rawArray);
-    mets1min = maArray.map((v, i) => ({ x: timeMin[i], y: v }));
+    const twoMinArray = twoMinuteMets(rawArray);
+    mets2min = twoMinArray.map((v, i) => ({ x: timeMin[i], y: v }));
   }
 
   document.getElementById("graphArea").innerHTML = `
@@ -1003,11 +1005,11 @@ document.getElementById("graphBtn").addEventListener("click", () => {
     yAxisID: "y1"
   });
 
-  // ★★★ 1分間METs（濃い青） ★★★
-  if (mets1min) {
+  // ★★★ 2分間METs（濃い青） ★★★
+  if (mets2min) {
     datasets.push({
-      label: "METs (1 min)",
-      data: mets1min,
+      label: "METs (2 min)",
+      data: mets2min,
       borderColor: "rgba(0, 102, 255, 1)",
       borderWidth: lineWidth + 1,
       pointRadius: 0,
