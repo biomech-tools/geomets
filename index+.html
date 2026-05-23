@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GeoMETs+ Final</title>
 
+<!-- SheetJS (Excel生成用) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <style>
 body {
   font-family: system-ui, sans-serif;
@@ -71,20 +74,21 @@ body {
   margin-top: 4px;
 }
 
-/* 他の数字 */
+/* 他の数字（累積系は2.0emに統一） */
 .card-small .card-value {
   font-weight: 800;
   text-align: center;
   line-height: 1.0;
 }
 #avgSpeedValue { font-size: 2.2em; }
-#cumKmValueKm { font-size: 2.1em; display:block; }
-#cumKmValueM  { font-size: 2.1em; display:block; }
-#cumExValue   { font-size: 2.2em; }
-#cumKcalValue { font-size: 2.2em; }
 
-/* 上り/下りと高度変化は縮小しない */
-#cumUpDownValue { font-size: 2.4em; }
+#cumExValue   { font-size: 2.0em; }
+#cumKmValueKm { font-size: 2.0em; display:block; }
+#cumKmValueM  { font-size: 2.0em; display:block; }
+#cumUpDownValue { font-size: 2.0em; }
+#cumKcalValue { font-size: 2.0em; }
+
+/* 高度変化は縮小しない */
 #altChangeValue { font-size: 2.4em; }
 
 .card-small .card-unit {
@@ -115,7 +119,7 @@ body {
 
 .bottom-row {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 16px;
 }
@@ -188,14 +192,14 @@ body {
 <div class="top-row">
 
   <div class="card-big">
-    <div class="card-label" id="labelAvgMets">累積</div>
+    <div class="card-label" id="labelAvgMets">平均 (30秒)</div>
     <div class="card-value" id="avgMetsValue">0.0</div>
     <div class="card-unit" id="unitMets">METs</div>
   </div>
 
   <div class="top-right-col">
     <div class="card-small">
-      <div class="card-label" id="labelAvgSpeed">累積</div>
+      <div class="card-label" id="labelAvgSpeed">平均 (30秒)</div>
       <div class="card-value" id="avgSpeedValue">0.0</div>
       <div class="card-unit" id="unitSpeed">km/h</div>
     </div>
@@ -208,18 +212,17 @@ body {
   </div>
 
 </div>
-
 <!-- 中段 -->
 <div class="mid-row">
 
   <div class="card-small">
-    <div class="card-label">累積</div>
+    <div class="card-label" id="labelCumEx">累積</div>
     <div class="card-value" id="cumExValue">0.00</div>
     <div class="card-unit">Ex</div>
   </div>
 
   <div class="card-small">
-    <div class="card-label">累積</div>
+    <div class="card-label" id="labelCumKm">累積</div>
     <div class="card-value" id="cumKmValue">
       <span id="cumKmValueKm">0 km</span>
       <span id="cumKmValueM">0 m</span>
@@ -228,7 +231,7 @@ body {
   </div>
 
   <div class="card-small">
-    <div class="card-label">累積<br>(上り/下り)</div>
+    <div class="card-label" id="labelUpDown">累積<br>(上り/下り)</div>
     <div class="card-value" id="cumUpDownValue">
       <span id="cumUpValue">0</span>/<span id="cumDownValue">0</span>
     </div>
@@ -241,7 +244,7 @@ body {
 <div class="bottom-row">
 
   <div class="card-small">
-    <div class="card-label">累積</div>
+    <div class="card-label" id="labelCumKcal">累積</div>
     <div class="card-value" id="cumKcalValue">0</div>
     <div class="card-unit">kcal</div>
   </div>
@@ -258,6 +261,71 @@ body {
 <div class="small-text" id="statusText"></div>
 
 <script>
+/* ===== i18n ===== */
+const i18n = {
+  ja: {
+    avgMets: "平均 (30秒)",
+    avgSpeed: "平均 (30秒)",
+    altChange: "高度変化",
+    cumulative: "累積",
+    updown: "累積<br>(上り/下り)",
+    kcal: "kcal",
+    ex: "Ex",
+    km_m: "km / m",
+    start: "開始",
+    stop: "終了",
+    reset: "リセット",
+    weight: "体重変更",
+    save: "保存",
+    gpsLost: "GPS未捕捉",
+    gpsOK: "GPS捕捉中",
+    askGPX: "GPXファイル も保存しますか？"
+  },
+  en: {
+    avgMets: "Average (30s)",
+    avgSpeed: "Average (30s)",
+    altChange: "Altitude Change",
+    cumulative: "Cumulative",
+    updown: "Cumulative<br>(Up/Down)",
+    kcal: "kcal",
+    ex: "Ex",
+    km_m: "km / m",
+    start: "Start",
+    stop: "Stop",
+    reset: "Reset",
+    weight: "Change Weight",
+    save: "Save",
+    gpsLost: "GPS Lost",
+    gpsOK: "GPS Locked",
+    askGPX: "Do you also want to save a GPX file?"
+  }
+};
+
+/* ===== 言語適用 ===== */
+function applyLanguage() {
+  const t = i18n[langSelect.value];
+
+  labelAvgMets.innerHTML = t.avgMets;
+  labelAvgSpeed.innerHTML = t.avgSpeed;
+  labelAltChange.innerHTML = t.altChange;
+
+  labelCumEx.innerHTML = t.cumulative;
+  labelCumKm.innerHTML = t.cumulative;
+  labelUpDown.innerHTML = t.updown;
+  labelCumKcal.innerHTML = t.cumulative;
+
+  startBtn.textContent = running ? t.stop : t.start;
+  resetBtn.textContent = t.reset;
+  weightBtn.textContent = t.weight;
+  saveBtn.textContent = t.save;
+
+  gpsStatus.textContent =
+    gpsStatus.style.color === "green" ? t.gpsOK : t.gpsLost;
+}
+
+/* 言語切替イベント */
+langSelect.addEventListener("change", applyLanguage);
+
 /* ===== 状態 ===== */
 let running = false;
 
@@ -272,7 +340,7 @@ let lastAltitude = null;
 let bufferTime = 0;
 let bufferSpeed = [];
 let bufferMets = [];
-let blockAltChange = 0; // この30秒ブロックでの高度変化合計（m）
+let blockAltChange = 0;
 
 /* 累積 */
 let weight = Number(localStorage.getItem("geomets_weight") || "60");
@@ -281,17 +349,49 @@ let cumEx = 0, cumKm = 0, cumUp = 0, cumDown = 0, cumKcal = 0;
 /* 平均表示 */
 let avgMets = 0, avgSpeed = 0, avgAltChange = 0;
 
-/* GPS開始（アプリ起動直後） */
+/* 時刻管理 */
+let startTimeUTC = null;
+let blockStartUTC = null;
+
+/* GPSログ（GPX用） */
+let gpsLog = [];
+
+/* JST変換 */
+function toJST(date) {
+  return new Date(date.getTime() + 9 * 3600 * 1000);
+}
+
+/* 表示用フォーマット */
+function fmt(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const da = String(d.getDate()).padStart(2,"0");
+  const h = String(d.getHours()).padStart(2,"0");
+  const mi = String(d.getMinutes()).padStart(2,"0");
+  const s = String(d.getSeconds()).padStart(2,"0");
+  return `${y}-${m}-${da} ${h}:${mi}:${s}`;
+}
+
+/* GPS開始 */
 navigator.geolocation.watchPosition(
   pos => {
-    gpsStatus.textContent = "GPS捕捉中";
     gpsStatus.style.color = "green";
+    gpsStatus.textContent = i18n[langSelect.value].gpsOK;
 
     const alt = pos.coords.altitude;
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    const nowUTC = new Date();
+
+    gpsLog.push({
+      lat, lon, alt,
+      timeUTC: nowUTC.toISOString()
+    });
 
     if (lastAltitude !== null && alt !== null) {
-      let diff = alt - lastAltitude;   // 高度差（m）
-      if (Math.abs(diff) < 0.5) diff = 0; // ノイズ除去
+      let diff = alt - lastAltitude;
+      if (Math.abs(diff) < 0.5) diff = 0;
       currentAltDiff = diff;
     } else {
       currentAltDiff = 0;
@@ -299,18 +399,15 @@ navigator.geolocation.watchPosition(
 
     lastAltitude = alt;
 
-    /* speed は m/s → km/h に変換 */
     currentSpeed = (pos.coords.speed ?? 0) * 3.6;
-
     currentMets = Math.max(1, 1 + (currentSpeed - 1) * 0.2);
   },
   err => {
-    gpsStatus.textContent = "GPS未捕捉";
     gpsStatus.style.color = "red";
+    gpsStatus.textContent = i18n[langSelect.value].gpsLost;
   },
   { enableHighAccuracy: true }
 );
-
 /* 平均 */
 function avg(arr) {
   if (arr.length === 0) return 0;
@@ -325,7 +422,6 @@ function updateDisplay() {
 
   cumExValue.textContent = cumEx.toFixed(2);
 
-  // 累積 km → km と m に分解
   const kmInt = Math.floor(cumKm);
   const mInt  = Math.round((cumKm - kmInt) * 1000);
   cumKmValueKm.textContent = kmInt + " km";
@@ -338,55 +434,76 @@ function updateDisplay() {
   statusText.textContent = `BW: ${weight.toFixed(1)} kg`;
 }
 
-/* 毎秒処理（30秒平均＋累積） */
+/* 毎秒処理 */
 setInterval(() => {
   if (!running) return;
 
-  /* バッファ追加 */
   bufferSpeed.push(currentSpeed);
   bufferMets.push(currentMets);
   bufferTime += 1;
 
-  /* 高度変化はこの30秒ブロックの合計として積算 */
   blockAltChange += currentAltDiff;
 
-  /* 毎秒の累積km・kcal */
   cumKm += currentSpeed / 3600;
   cumKcal += currentMets * weight / 3600;
 
-  /* 30秒経過したら平均を更新 */
   if (bufferTime >= 30) {
+    const blockEndUTC = new Date();
+
     avgSpeed = avg(bufferSpeed);
     avgMets = avg(bufferMets);
-    avgAltChange = blockAltChange; // この30秒での高度変化合計（m）
+    avgAltChange = blockAltChange;
 
-    /* 累積Ex */
     cumEx += avgMets * (30 / 3600);
 
-    /* 累積Up/Down */
     if (blockAltChange > 0) cumUp += blockAltChange;
     else if (blockAltChange < 0) cumDown += -blockAltChange;
 
-    /* バッファリセット */
+    excelBlocks.push({
+      startUTC: blockStartUTC,
+      endUTC: blockEndUTC,
+      avgMets,
+      avgSpeed,
+      avgAltChange,
+      cumEx,
+      cumKm,
+      cumUp,
+      cumDown,
+      cumKcal
+    });
+
     bufferSpeed = [];
     bufferMets = [];
     bufferTime = 0;
     blockAltChange = 0;
+    blockStartUTC = blockEndUTC;
   }
 
   updateDisplay();
 }, 1000);
 
-/* Start ↔ End */
+/* Excel用ブロック */
+let excelBlocks = [];
+
+/* Start */
 startBtn.addEventListener("click", () => {
   running = !running;
-  startBtn.textContent = running ? "終了" : "開始";
+
+  if (running) {
+    startTimeUTC = new Date();
+    blockStartUTC = new Date();
+    excelBlocks = [];
+    gpsLog = [];
+    startBtn.textContent = i18n[langSelect.value].stop;
+  } else {
+    startBtn.textContent = i18n[langSelect.value].start;
+  }
 });
 
 /* Reset */
 resetBtn.addEventListener("click", () => {
   running = false;
-  startBtn.textContent = "開始";
+  startBtn.textContent = i18n[langSelect.value].start;
 
   avgMets = avgSpeed = avgAltChange = 0;
   cumEx = cumKm = cumUp = cumDown = cumKcal = 0;
@@ -395,6 +512,9 @@ resetBtn.addEventListener("click", () => {
   bufferSpeed = [];
   bufferMets = [];
   blockAltChange = 0;
+
+  excelBlocks = [];
+  gpsLog = [];
 
   updateDisplay();
 });
@@ -413,33 +533,83 @@ weightBtn.addEventListener("click", () => {
   }
 });
 
-/* 保存（スマホ対応） */
-saveBtn.addEventListener("click", () => {
-  const rows = [
-    ["Average METs", avgMets.toFixed(1)],
-    ["Average Speed", avgSpeed.toFixed(1)],
-    ["Altitude Change (30s)", avgAltChange.toFixed(1)],
-    ["Cumulative Ex", cumEx.toFixed(2)],
-    ["Cumulative Distance (km)", cumKm.toFixed(3)],
-    ["Cumulative Up", Math.round(cumUp)],
-    ["Cumulative Down", Math.round(cumDown)],
-    ["Cumulative kcal", Math.round(cumKcal)],
-    ["Body Weight", weight.toFixed(1)]
+/* Excel保存 */
+function saveExcel() {
+  const wsData = [
+    ["Time Start", "Time End", "Avg METs", "Avg Speed", "Alt Change",
+     "Cum Ex", "Cum km", "Up", "Down", "kcal"]
   ];
-  const csv = rows.map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], {type: "text/csv"});
+
+  excelBlocks.forEach(b => {
+    const start = (tzSelect.value === "JST") ? fmt(toJST(b.startUTC)) + " JST"
+                                            : fmt(b.startUTC) + " UTC";
+    const end   = (tzSelect.value === "JST") ? fmt(toJST(b.endUTC)) + " JST"
+                                            : fmt(b.endUTC) + " UTC";
+
+    wsData.push([
+      start,
+      end,
+      b.avgMets.toFixed(1),
+      b.avgSpeed.toFixed(1),
+      b.avgAltChange.toFixed(1),
+      b.cumEx.toFixed(2),
+      b.cumKm.toFixed(3),
+      Math.round(b.cumUp),
+      Math.round(b.cumDown),
+      Math.round(b.cumKcal)
+    ]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  XLSX.utils.book_append_sheet(wb, ws, "GeoMETs");
+
+  XLSX.writeFile(wb, "geomets_session.xlsx");
+}
+
+/* GPX保存 */
+function saveGPX() {
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GeoMETs+">
+<trk><name>GeoMETs+ Track</name><trkseg>
+`;
+
+  gpsLog.forEach(p => {
+    gpx += `<trkpt lat="${p.lat}" lon="${p.lon}">
+<ele>${p.alt}</ele>
+<time>${p.timeUTC}</time>
+</trkpt>
+`;
+  });
+
+  gpx += `</trkseg></trk></gpx>`;
+
+  const blob = new Blob([gpx], {type: "application/gpx+xml"});
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "geomets_session.csv";
+  a.download = "geomets_track.gpx";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 
   URL.revokeObjectURL(url);
+}
+
+/* 保存（Excel → ダイアログ → GPX） */
+saveBtn.addEventListener("click", () => {
+
+  saveExcel();
+
+  const ask = i18n[langSelect.value].askGPX;
+
+  if (confirm(ask)) {
+    saveGPX();
+  }
 });
 
+applyLanguage();
 updateDisplay();
 </script>
 
