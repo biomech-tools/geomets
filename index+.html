@@ -247,13 +247,11 @@ body {
 <script>
 /* ===== 状態 ===== */
 let running = false;
-let lastUpdate = null;
 
-let weight = Number(localStorage.getItem("geomets_weight") || "60");
-
-let cumEx = 0, cumKm = 0, cumUp = 0, cumDown = 0, cumKcal = 0;
-
-let avgMets = 0, avgSpeed = 0, avgAltChange = 0;
+/* GPS値 */
+let currentSpeed = 0;
+let currentAlt = 0;
+let currentMets = 0;
 
 /* 30秒バッファ */
 let bufferTime = 0;
@@ -261,13 +259,31 @@ let bufferSpeed = [];
 let bufferAlt = [];
 let bufferMets = [];
 
-/* 疑似GPS値 */
-function simulateGPS() {
-  const speed = 4 + (Math.random() - 0.5) * 1.0;
-  const alt = (Math.random() - 0.5) * 6;
-  const mets = Math.max(1, 1 + (speed - 1) * 0.7);
-  return { speed, alt, mets };
-}
+/* 累積 */
+let weight = Number(localStorage.getItem("geomets_weight") || "60");
+let cumEx = 0, cumKm = 0, cumUp = 0, cumDown = 0, cumKcal = 0;
+
+/* 平均表示 */
+let avgMets = 0, avgSpeed = 0, avgAltChange = 0;
+
+/* GPS開始（アプリ起動直後） */
+navigator.geolocation.watchPosition(
+  pos => {
+    gpsStatus.textContent = currentLang === "ja" ? "GPS捕捉中" : "GPS locked";
+    gpsStatus.style.color = "green";
+
+    /* 本来は pos.coords.speed, altitude などを使う */
+    /* 今は疑似値 */
+    currentSpeed = 4 + (Math.random() - 0.5) * 1.0;
+    currentAlt = (Math.random() - 0.5) * 6;
+    currentMets = Math.max(1, 1 + (currentSpeed - 1) * 0.7);
+  },
+  err => {
+    gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
+    gpsStatus.style.color = "red";
+  },
+  { enableHighAccuracy: true }
+);
 
 /* 平均 */
 function avg(arr) {
@@ -290,77 +306,58 @@ function updateDisplay() {
   statusText.textContent = `BW: ${weight.toFixed(1)} kg`;
 }
 
-/* メインループ */
-function tick() {
-  const now = performance.now();
+/* 毎秒処理（30秒平均＋累積） */
+setInterval(() => {
+  if (!running) return;
 
-  if (running && lastUpdate != null) {
-    const dt = (now - lastUpdate) / 1000;
+  /* バッファ追加 */
+  bufferSpeed.push(currentSpeed);
+  bufferAlt.push(currentAlt);
+  bufferMets.push(currentMets);
+  bufferTime += 1;
 
-    bufferTime += dt;
+  /* 毎秒の累積km・kcal */
+  cumKm += currentSpeed / 3600;
+  cumKcal += currentMets * weight / 3600;
 
-    /* 1秒ごとにデータ追加 */
-    if (dt > 0.9) {
-      const g = simulateGPS();
-      bufferSpeed.push(g.speed);
-      bufferAlt.push(g.alt);
-      bufferMets.push(g.mets);
+  /* 30秒経過したら平均を更新 */
+  if (bufferTime >= 30) {
+    avgSpeed = avg(bufferSpeed);
+    avgAltChange = avg(bufferAlt);
+    avgMets = avg(bufferMets);
 
-      /* 累積km・kcal は毎秒加算 */
-      cumKm += g.speed / 3600;
-      cumKcal += g.mets * weight / 3600;
-    }
+    /* 累積Ex */
+    cumEx += avgMets * (30 / 3600);
 
-    /* 30秒経過したら平均を1回だけ更新 */
-    if (bufferTime >= 30) {
-      avgSpeed = avg(bufferSpeed);
-      avgAltChange = avg(bufferAlt);
-      avgMets = avg(bufferMets);
+    /* 累積Up/Down */
+    const altSum = bufferAlt.reduce((a,b)=>a+b,0);
+    if (altSum > 0) cumUp += altSum;
+    else cumDown += -altSum;
 
-      /* 累積Ex */
-      cumEx += avgMets * (30 / 3600);
-
-      /* 累積Up/Down */
-      const altSum = bufferAlt.reduce((a,b)=>a+b,0);
-      if (altSum > 0) cumUp += altSum;
-      else cumDown += -altSum;
-
-      /* バッファリセット */
-      bufferTime = 0;
-      bufferSpeed = [];
-      bufferAlt = [];
-      bufferMets = [];
-    }
-
-    updateDisplay();
+    /* バッファリセット */
+    bufferSpeed = [];
+    bufferAlt = [];
+    bufferMets = [];
+    bufferTime = 0;
   }
 
-  lastUpdate = now;
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
+  updateDisplay();
+}, 1000);
 
 /* Start ↔ End */
 startBtn.addEventListener("click", () => {
   running = !running;
 
-  if (running) {
-    startBtn.textContent = currentLang === "ja" ? "終了" : "End";
-    gpsStatus.textContent = currentLang === "ja" ? "GPS捕捉中" : "GPS locked";
-    gpsStatus.style.color = "green";
-  } else {
-    startBtn.textContent = currentLang === "ja" ? "開始" : "Start";
-    gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
-    gpsStatus.style.color = "red";
-  }
+  startBtn.textContent = running
+    ? (currentLang === "ja" ? "終了" : "End")
+    : (currentLang === "ja" ? "開始" : "Start");
 });
 
 /* Reset */
 resetBtn.addEventListener("click", () => {
   running = false;
+
   startBtn.textContent = currentLang === "ja" ? "開始" : "Start";
-  gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
-  gpsStatus.style.color = "red";
 
   avgMets = avgSpeed = avgAltChange = 0;
   cumEx = cumKm = cumUp = cumDown = cumKcal = 0;
@@ -375,7 +372,10 @@ resetBtn.addEventListener("click", () => {
 
 /* Change BW */
 weightBtn.addEventListener("click", () => {
-  const v = prompt(currentLang === "ja" ? "体重を入力してください (kg)" : "Enter body weight (kg)", weight.toFixed(1));
+  const v = prompt(
+    currentLang === "ja" ? "体重を入力してください (kg)" : "Enter body weight (kg)",
+    weight.toFixed(1)
+  );
   if (v == null) return;
   const w = Number(v);
   if (!isNaN(w) && w > 0 && w < 300) {
