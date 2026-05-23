@@ -210,7 +210,7 @@ body {
 
   <div class="card-small">
     <div class="card-label" id="labelCumKm">累積</div>
-    <div class="card-value" id="cumKmValue">0.0</div>
+    <div class="card-value" id="cumKmValue">0.000</div>
     <div class="card-unit" id="unitKm">km</div>
   </div>
 
@@ -250,8 +250,10 @@ let running = false;
 
 /* GPS値 */
 let currentSpeed = 0;
-let currentAlt = 0;
+let currentAltDiff = 0;
 let currentMets = 0;
+
+let lastAltitude = null;
 
 /* 30秒バッファ */
 let bufferTime = 0;
@@ -272,10 +274,17 @@ navigator.geolocation.watchPosition(
     gpsStatus.textContent = currentLang === "ja" ? "GPS捕捉中" : "GPS locked";
     gpsStatus.style.color = "green";
 
-    /* 本来は pos.coords.speed, altitude などを使う */
-    /* 今は疑似値 */
-    currentSpeed = 4 + (Math.random() - 0.5) * 1.0;
-    currentAlt = (Math.random() - 0.5) * 6;
+    const alt = pos.coords.altitude;
+
+    if (lastAltitude !== null && alt !== null) {
+      currentAltDiff = alt - lastAltitude;   // 高度差（m）
+    } else {
+      currentAltDiff = 0;
+    }
+
+    lastAltitude = alt;
+
+    currentSpeed = pos.coords.speed ?? 0;
     currentMets = Math.max(1, 1 + (currentSpeed - 1) * 0.7);
   },
   err => {
@@ -298,7 +307,7 @@ function updateDisplay() {
   altChangeValue.textContent = avgAltChange.toFixed(1);
 
   cumExValue.textContent = cumEx.toFixed(1);
-  cumKmValue.textContent = cumKm.toFixed(1);
+  cumKmValue.textContent = cumKm.toFixed(3);
   cumUpValue.textContent = Math.round(cumUp);
   cumDownValue.textContent = Math.round(cumDown);
   cumKcalValue.textContent = Math.round(cumKcal);
@@ -312,7 +321,7 @@ setInterval(() => {
 
   /* バッファ追加 */
   bufferSpeed.push(currentSpeed);
-  bufferAlt.push(currentAlt);
+  bufferAlt.push(currentAltDiff);
   bufferMets.push(currentMets);
   bufferTime += 1;
 
