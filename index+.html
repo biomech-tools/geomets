@@ -158,8 +158,10 @@ body {
 }
 
 
+/* --- カードの固定高さ（揺れ防止） --- */
 .card-big {
   height: 180px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -172,17 +174,47 @@ body {
   justify-content: center;
 }
 
+/* --- 上段の比率調整（右へ3mm相当） --- */
 .top-row {
-  height: 180px;
+  display: grid;
+  grid-template-columns: 2.2fr 1fr; /* 2 → 2.2 に変更 */
+  gap: 10px;
+  margin-top: 16px;
 }
 
+/* --- 中段の比率調整（累積Exを2mm細く） --- */
 .mid-row {
-  height: 120px;
+  display: grid;
+  grid-template-columns: 0.95fr 1fr 1fr; /* 左を少し細く */
+  gap: 10px;
+  margin-top: 16px;
 }
 
+/* --- 下段の比率調整（ボタンの左右に2mm余白） --- */
 .bottom-row {
-  height: 120px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+  padding-left: 2mm;   /* 左端を2mm右へ */
+  padding-right: 2mm;  /* 右端を2mm右へ */
 }
+
+/* --- ボタンを横長にする --- */
+.button-grid button {
+  width: 100%;
+  height: 48px; /* 横長に見える高さ */
+  padding: 6px 4px;
+  font-size: 1.2em;
+  line-height: 1.2em;
+  box-sizing: border-box;
+}
+
+/* --- 数字の揺れ防止（等幅フォント） --- */
+.card-value {
+  font-family: "Roboto Mono", "Menlo", "Courier New", monospace;
+}
+
 
 
 
@@ -615,17 +647,20 @@ function saveGPX() {
   gpx += `</trkseg></trk></gpx>`;
 
   const blob = new Blob([gpx], {type: "application/gpx+xml"});
-  const url = URL.createObjectURL(blob);
+  const reader = new FileReader();
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "geomets_track.gpx";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  reader.onload = function() {
+    const a = document.createElement("a");
+    a.href = reader.result;  // data URL
+    a.download = "geomets_track.gpx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
-  URL.revokeObjectURL(url);
+  reader.readAsDataURL(blob);
 }
+
 
 /* 保存（Excel → ダイアログ → GPX） */
 saveBtn.addEventListener("click", () => {
