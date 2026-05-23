@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GeoMETs+ Final</title>
+<title>GeoMETs+ Functional Final</title>
 
 <style>
 body {
@@ -38,7 +38,7 @@ body {
   box-sizing: border-box;
 }
 
-/* カード共通 */
+/* カード */
 .card-big, .card-small {
   background: #f5f5f5;
   border-radius: 10px;
@@ -71,7 +71,7 @@ body {
   margin-top: 4px;
 }
 
-/* 他の数字（小正方形） */
+/* 他の数字 */
 .card-small .card-value {
   font-size: 2.4em;
   font-weight: 800;
@@ -87,7 +87,7 @@ body {
 /* グリッドレイアウト */
 .top-row {
   display: grid;
-  grid-template-columns: 2fr 1fr; /* 大＋小2つ */
+  grid-template-columns: 2fr 1fr;
   gap: 10px;
   margin-top: 16px;
 }
@@ -99,14 +99,14 @@ body {
 
 .mid-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* 小3つ */
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
   margin-top: 16px;
 }
 
 .bottom-row {
   display: grid;
-  grid-template-columns: 1fr 2fr; /* 累積kcal＋ボタン */
+  grid-template-columns: 1fr 2fr;
   gap: 10px;
   margin-top: 16px;
 }
@@ -150,7 +150,7 @@ body {
 <!-- タイトル -->
 <div id="title-row">
   <div id="appTitle">GeoMETs+</div>
-  <div id="appVersion">Final</div>
+  <div id="appVersion">Functional Final</div>
 </div>
 
 <!-- 設定 -->
@@ -174,7 +174,7 @@ body {
   <div id="gpsStatus">GPS未捕捉</div>
 </div>
 
-<!-- 上段：平均METs＋右2つ -->
+<!-- 上段 -->
 <div class="top-row">
 
   <div class="card-big">
@@ -199,7 +199,7 @@ body {
 
 </div>
 
-<!-- 中段：累積3つ -->
+<!-- 中段 -->
 <div class="mid-row">
 
   <div class="card-small">
@@ -224,7 +224,7 @@ body {
 
 </div>
 
-<!-- 下段：累積kcal＋ボタン -->
+<!-- 下段 -->
 <div class="bottom-row">
 
   <div class="card-small">
@@ -248,33 +248,31 @@ body {
 /* ===== 状態 ===== */
 let running = false;
 let lastUpdate = null;
-let elapsed30 = 0;
 
 let weight = Number(localStorage.getItem("geomets_weight") || "60");
 
 let cumEx = 0, cumKm = 0, cumUp = 0, cumDown = 0, cumKcal = 0;
+
 let avgMets = 0, avgSpeed = 0, avgAltChange = 0;
 
-/* 簡易シミュレーション */
-function simulateStep(dtSec) {
+/* 30秒バッファ */
+let bufferTime = 0;
+let bufferSpeed = [];
+let bufferAlt = [];
+let bufferMets = [];
+
+/* 疑似GPS値 */
+function simulateGPS() {
   const speed = 4 + (Math.random() - 0.5) * 1.0;
-  const altChange30 = (Math.random() - 0.5) * 6;
+  const alt = (Math.random() - 0.5) * 6;
+  const mets = Math.max(1, 1 + (speed - 1) * 0.7);
+  return { speed, alt, mets };
+}
 
-  avgSpeed = speed;
-  avgAltChange = altChange30;
-  avgMets = Math.max(1, 1 + (speed - 1) * 0.7);
-
-  const distKm = speed * (dtSec / 3600);
-  cumKm += distKm;
-
-  cumEx += avgMets * (dtSec / 3600);
-
-  if (elapsed30 >= 30) {
-    if (altChange30 > 0) cumUp += altChange30;
-    else cumDown += -altChange30;
-  }
-
-  cumKcal += avgMets * weight * (dtSec / 3600);
+/* 平均 */
+function avg(arr) {
+  if (arr.length === 0) return 0;
+  return arr.reduce((a,b)=>a+b,0) / arr.length;
 }
 
 /* 表示更新 */
@@ -295,13 +293,48 @@ function updateDisplay() {
 /* メインループ */
 function tick() {
   const now = performance.now();
+
   if (running && lastUpdate != null) {
-    const dtSec = (now - lastUpdate) / 1000;
-    elapsed30 += dtSec;
-    simulateStep(dtSec);
-    if (elapsed30 >= 30) elapsed30 = 0;
+    const dt = (now - lastUpdate) / 1000;
+
+    bufferTime += dt;
+
+    /* 1秒ごとにデータ追加 */
+    if (dt > 0.9) {
+      const g = simulateGPS();
+      bufferSpeed.push(g.speed);
+      bufferAlt.push(g.alt);
+      bufferMets.push(g.mets);
+
+      /* 累積km・kcal は毎秒加算 */
+      cumKm += g.speed / 3600;
+      cumKcal += g.mets * weight / 3600;
+    }
+
+    /* 30秒経過したら平均を1回だけ更新 */
+    if (bufferTime >= 30) {
+      avgSpeed = avg(bufferSpeed);
+      avgAltChange = avg(bufferAlt);
+      avgMets = avg(bufferMets);
+
+      /* 累積Ex */
+      cumEx += avgMets * (30 / 3600);
+
+      /* 累積Up/Down */
+      const altSum = bufferAlt.reduce((a,b)=>a+b,0);
+      if (altSum > 0) cumUp += altSum;
+      else cumDown += -altSum;
+
+      /* バッファリセット */
+      bufferTime = 0;
+      bufferSpeed = [];
+      bufferAlt = [];
+      bufferMets = [];
+    }
+
     updateDisplay();
   }
+
   lastUpdate = now;
   requestAnimationFrame(tick);
 }
@@ -331,7 +364,12 @@ resetBtn.addEventListener("click", () => {
 
   avgMets = avgSpeed = avgAltChange = 0;
   cumEx = cumKm = cumUp = cumDown = cumKcal = 0;
-  elapsed30 = 0;
+
+  bufferTime = 0;
+  bufferSpeed = [];
+  bufferAlt = [];
+  bufferMets = [];
+
   updateDisplay();
 });
 
@@ -349,7 +387,7 @@ weightBtn.addEventListener("click", () => {
   }
 });
 
-/* 保存（CSV） */
+/* 保存（スマホ対応） */
 saveBtn.addEventListener("click", () => {
   const rows = [
     ["Average METs", avgMets.toFixed(1)],
@@ -365,10 +403,14 @@ saveBtn.addEventListener("click", () => {
   const csv = rows.map(r => r.join(",")).join("\n");
   const blob = new Blob([csv], {type: "text/csv"});
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = "geomets_session.csv";
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+
   URL.revokeObjectURL(url);
 });
 
