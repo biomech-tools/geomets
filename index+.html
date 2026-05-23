@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoMETs+ Final</title>
+
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* タイトル */
+#title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+#appTitle { font-size: 1.8em; font-weight: bold; }
+#appVersion { font-size: 0.8em; color: #666; }
+
+/* 設定 */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+.settings-grid select {
+  width: 100%;
+  padding: 4px;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+/* カード共通 */
+.card-big, .card-small {
+  background: #f5f5f5;
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.card-big { aspect-ratio: 1 / 1; }
+.card-small { aspect-ratio: 1 / 1; }
+
+/* ラベル */
+.card-label {
+  font-size: 0.95em;
+  color: #666;
+  text-align: center;
+}
+
+/* 主役：平均METs */
+.card-big .card-value {
+  font-size: 5.0em;
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.0;
+}
+.card-big .card-unit {
+  font-size: 1.2em;
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* 他の数字（小正方形） */
+.card-small .card-value {
+  font-size: 2.4em;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.0;
+}
+.card-small .card-unit {
+  font-size: 1.0em;
+  text-align: center;
+  margin-top: 3px;
+}
+
+/* グリッドレイアウト */
+.top-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* 大＋小2つ */
+  gap: 10px;
+  margin-top: 16px;
+}
+.top-right-col {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+}
+
+.mid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* 小3つ */
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr; /* 累積kcal＋ボタン */
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ボタン */
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+}
+.button-grid button {
+  width: 100%;
+  padding: 8px 4px;
+  font-size: 1.1em;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* GPS */
+#gpsStatus {
+  font-weight: bold;
+  text-align: center;
+  color: red;
+}
+
+/* ステータス */
+.small-text {
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 4px;
+  text-align: right;
+}
+</style>
+</head>
+
+<body>
+
+<!-- タイトル -->
+<div id="title-row">
+  <div id="appTitle">GeoMETs+</div>
+  <div id="appVersion">Final</div>
+</div>
+
+<!-- 設定 -->
+<div class="settings-grid">
+  <div id="labelLanguage">言語</div>
+  <div>JST / UTC</div>
+  <div id="labelGpsState">衛星捕捉状態</div>
+
+  <div>
+    <select id="langSelect">
+      <option value="ja">日本語</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div>
+    <select id="tzSelect">
+      <option value="JST">JST</option>
+      <option value="UTC">UTC</option>
+    </select>
+  </div>
+  <div id="gpsStatus">GPS未捕捉</div>
+</div>
+
+<!-- 上段：平均METs＋右2つ -->
+<div class="top-row">
+
+  <div class="card-big">
+    <div class="card-label" id="labelAvgMets">平均 (30秒)</div>
+    <div class="card-value" id="avgMetsValue">0.0</div>
+    <div class="card-unit" id="unitMets">METs</div>
+  </div>
+
+  <div class="top-right-col">
+    <div class="card-small">
+      <div class="card-label" id="labelAvgSpeed">平均 (30秒)</div>
+      <div class="card-value" id="avgSpeedValue">0.0</div>
+      <div class="card-unit" id="unitSpeed">km/h</div>
+    </div>
+
+    <div class="card-small">
+      <div class="card-label" id="labelAltChange">高度変化</div>
+      <div class="card-value" id="altChangeValue">0.0</div>
+      <div class="card-unit" id="unitAlt">m/30s</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 中段：累積3つ -->
+<div class="mid-row">
+
+  <div class="card-small">
+    <div class="card-label" id="labelCumEx">累積</div>
+    <div class="card-value" id="cumExValue">0.0</div>
+    <div class="card-unit" id="unitEx">Ex</div>
+  </div>
+
+  <div class="card-small">
+    <div class="card-label" id="labelCumKm">累積</div>
+    <div class="card-value" id="cumKmValue">0.0</div>
+    <div class="card-unit" id="unitKm">km</div>
+  </div>
+
+  <div class="card-small">
+    <div class="card-label" id="labelCumUpDown">累積</div>
+    <div class="card-value">
+      <span id="cumUpValue">0</span>/<span id="cumDownValue">0</span>
+    </div>
+    <div class="card-unit" id="unitUpDown">m</div>
+  </div>
+
+</div>
+
+<!-- 下段：累積kcal＋ボタン -->
+<div class="bottom-row">
+
+  <div class="card-small">
+    <div class="card-label" id="labelCumKcal">累積</div>
+    <div class="card-value" id="cumKcalValue">0</div>
+    <div class="card-unit" id="unitKcal">kcal</div>
+  </div>
+
+  <div class="button-grid">
+    <button id="startBtn">開始</button>
+    <button id="resetBtn">リセット</button>
+    <button id="weightBtn">体重変更</button>
+    <button id="saveBtn">保存</button>
+  </div>
+
+</div>
+
+<div class="small-text" id="statusText"></div>
+
+<script>
+/* ===== 状態 ===== */
+let running = false;
+let lastUpdate = null;
+let elapsed30 = 0;
+
+let weight = Number(localStorage.getItem("geomets_weight") || "60");
+
+let cumEx = 0, cumKm = 0, cumUp = 0, cumDown = 0, cumKcal = 0;
+let avgMets = 0, avgSpeed = 0, avgAltChange = 0;
+
+/* 簡易シミュレーション */
+function simulateStep(dtSec) {
+  const speed = 4 + (Math.random() - 0.5) * 1.0;
+  const altChange30 = (Math.random() - 0.5) * 6;
+
+  avgSpeed = speed;
+  avgAltChange = altChange30;
+  avgMets = Math.max(1, 1 + (speed - 1) * 0.7);
+
+  const distKm = speed * (dtSec / 3600);
+  cumKm += distKm;
+
+  cumEx += avgMets * (dtSec / 3600);
+
+  if (elapsed30 >= 30) {
+    if (altChange30 > 0) cumUp += altChange30;
+    else cumDown += -altChange30;
+  }
+
+  cumKcal += avgMets * weight * (dtSec / 3600);
+}
+
+/* 表示更新 */
+function updateDisplay() {
+  avgMetsValue.textContent = avgMets.toFixed(1);
+  avgSpeedValue.textContent = avgSpeed.toFixed(1);
+  altChangeValue.textContent = avgAltChange.toFixed(1);
+
+  cumExValue.textContent = cumEx.toFixed(1);
+  cumKmValue.textContent = cumKm.toFixed(1);
+  cumUpValue.textContent = Math.round(cumUp);
+  cumDownValue.textContent = Math.round(cumDown);
+  cumKcalValue.textContent = Math.round(cumKcal);
+
+  statusText.textContent = `BW: ${weight.toFixed(1)} kg`;
+}
+
+/* メインループ */
+function tick() {
+  const now = performance.now();
+  if (running && lastUpdate != null) {
+    const dtSec = (now - lastUpdate) / 1000;
+    elapsed30 += dtSec;
+    simulateStep(dtSec);
+    if (elapsed30 >= 30) elapsed30 = 0;
+    updateDisplay();
+  }
+  lastUpdate = now;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* Start ↔ End */
+startBtn.addEventListener("click", () => {
+  running = !running;
+
+  if (running) {
+    startBtn.textContent = currentLang === "ja" ? "終了" : "End";
+    gpsStatus.textContent = currentLang === "ja" ? "GPS捕捉中" : "GPS locked";
+    gpsStatus.style.color = "green";
+  } else {
+    startBtn.textContent = currentLang === "ja" ? "開始" : "Start";
+    gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
+    gpsStatus.style.color = "red";
+  }
+});
+
+/* Reset */
+resetBtn.addEventListener("click", () => {
+  running = false;
+  startBtn.textContent = currentLang === "ja" ? "開始" : "Start";
+  gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
+  gpsStatus.style.color = "red";
+
+  avgMets = avgSpeed = avgAltChange = 0;
+  cumEx = cumKm = cumUp = cumDown = cumKcal = 0;
+  elapsed30 = 0;
+  updateDisplay();
+});
+
+/* Change BW */
+weightBtn.addEventListener("click", () => {
+  const v = prompt(currentLang === "ja" ? "体重を入力してください (kg)" : "Enter body weight (kg)", weight.toFixed(1));
+  if (v == null) return;
+  const w = Number(v);
+  if (!isNaN(w) && w > 0 && w < 300) {
+    weight = w;
+    localStorage.setItem("geomets_weight", String(weight));
+    updateDisplay();
+  } else {
+    alert(currentLang === "ja" ? "体重の値が不正です。" : "Invalid weight.");
+  }
+});
+
+/* 保存（CSV） */
+saveBtn.addEventListener("click", () => {
+  const rows = [
+    ["Average METs", avgMets.toFixed(1)],
+    ["Average Speed", avgSpeed.toFixed(1)],
+    ["Altitude Change", avgAltChange.toFixed(1)],
+    ["Cumulative Ex", cumEx.toFixed(1)],
+    ["Cumulative Distance", cumKm.toFixed(3)],
+    ["Cumulative Up", Math.round(cumUp)],
+    ["Cumulative Down", Math.round(cumDown)],
+    ["Cumulative kcal", Math.round(cumKcal)],
+    ["Body Weight", weight.toFixed(1)]
+  ];
+  const csv = rows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], {type: "text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "geomets_session.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* 言語切替 */
+let currentLang = "ja";
+
+const i18n = {
+  ja: {
+    language: "言語",
+    gpsState: "衛星捕捉状態",
+    avg30: "平均 (30秒)",
+    alt: "高度変化",
+    cumulative: "累積",
+    start: "開始",
+    end: "終了",
+    reset: "リセット",
+    save: "保存",
+    weight: "体重変更",
+    gpsOn: "GPS捕捉中",
+    gpsOff: "GPS未捕捉"
+  },
+  en: {
+    language: "Language",
+    gpsState: "GPS State",
+    avg30: "Average (30s)",
+    alt: "Altitude change",
+    cumulative: "Cumulative",
+    start: "Start",
+    end: "End",
+    reset: "Reset",
+    save: "Save",
+    weight: "Change<br>BW",
+    gpsOn: "GPS locked",
+    gpsOff: "GPS lost"
+  }
+};
+
+function applyLang(lang) {
+  currentLang = lang;
+  const t = i18n[lang];
+
+  labelLanguage.textContent = t.language;
+  labelGpsState.textContent = t.gpsState;
+
+  labelAvgMets.textContent = t.avg30;
+  labelAvgSpeed.textContent = t.avg30;
+  labelAltChange.textContent = t.alt;
+
+  labelCumEx.textContent = t.cumulative;
+  labelCumKm.textContent = t.cumulative;
+  labelCumUpDown.textContent = t.cumulative;
+  labelCumKcal.textContent = t.cumulative;
+
+  weightBtn.innerHTML = t.weight;
+
+  resetBtn.textContent = t.reset;
+  saveBtn.textContent = t.save;
+
+  startBtn.textContent = running ? t.end : t.start;
+  gpsStatus.textContent = running ? t.gpsOn : t.gpsOff;
+  gpsStatus.style.color = running ? "green" : "red";
+}
+
+langSelect.addEventListener("change", e => applyLang(e.target.value));
+
+updateDisplay();
+</script>
+
+</body>
+</html>
