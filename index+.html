@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GeoMETs+ Final</title>
 
-<!-- SheetJS (Excel生成用) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
@@ -41,18 +40,30 @@ body {
   box-sizing: border-box;
 }
 
-/* カード */
-.card-big, .card-small {
+/* カード背景 */
+.card-big,
+.card-small {
   background: #f5f5f5;
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
   box-sizing: border-box;
+}
+
+/* 平均METsカード */
+.card-big {
+  height: 228px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
-.card-big { aspect-ratio: 1 / 1; }
-.card-small { aspect-ratio: 1 / 1; }
+
+/* 小カード */
+.card-small {
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
 /* ラベル */
 .card-label {
@@ -74,72 +85,99 @@ body {
   margin-top: 4px;
 }
 
-/* 他の数字（累積系は2.0emに統一） */
-.card-small .card-value {
-  font-weight: 800;
-  text-align: center;
-  line-height: 1.0;
+/* 数字（等幅フォントで揺れ防止） */
+.card-value {
+  font-family: "Roboto Mono", "Menlo", "Courier New", monospace;
+  letter-spacing: -1px;
 }
-#avgSpeedValue { font-size: 2.2em; }
 
+#avgSpeedValue { font-size: 2.2em; }
 #cumExValue   { font-size: 2.0em; }
-#cumKmValueKm { font-size: 2.0em; display:block; }
-#cumKmValueM  { font-size: 2.0em; display:block; }
 #cumUpDownValue { font-size: 2.0em; }
 #cumKcalValue { font-size: 2.0em; }
+
+/* km と m の単位を小さく（C案） */
+#cumKmValueKm,
+#cumKmValueM {
+  font-size: 1.6em;
+  line-height: 1.0;
+  display: block;
+}
+
+#cumKmValueKm::after {
+  content: " km";
+  font-size: 0.6em;
+}
+#cumKmValueM::after {
+  content: " m";
+  font-size: 0.6em;
+}
+
+/* Ex の単位を小さく */
+#cumExUnit {
+  font-size: 0.6em;
+  text-align: center;
+  margin-top: 2px;
+}
 
 /* 高度変化は縮小しない */
 #altChangeValue { font-size: 2.4em; }
 
-.card-small .card-unit {
-  font-size: 1.0em;
+/* 単位を小さく */
+.card-unit {
+  font-size: 0.75em;
   text-align: center;
   margin-top: 3px;
 }
 
-/* グリッドレイアウト */
+/* 上段レイアウト */
 .top-row {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1.4fr 1fr;
   gap: 10px;
   margin-top: 16px;
 }
+
 .top-right-col {
   display: grid;
   grid-template-rows: 1fr 1fr;
   gap: 10px;
 }
 
+/* 中段（累積Ex と kcal の幅を揃える） */
 .mid-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 0.9fr 1fr 0.9fr;
   gap: 10px;
   margin-top: 16px;
 }
 
+/* 下段（ボタンを左右いっぱいに） */
 .bottom-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.9fr 1.1fr;
   gap: 10px;
   margin-top: 16px;
 }
 
-/* ボタン */
+/* 2×2 ボタン配置 */
 .button-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
-.button-grid button {
-  width: 100%;
-  padding: 8px 4px;
-  font-size: 1.1em;
-  line-height: 1.4em;
-  box-sizing: border-box;
+
+.button-col {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.button-col button {
+  width: 100%;
+  height: 60px;
+  font-size: 1.3em;
+  padding: 6px 4px;
 }
 
 /* GPS */
@@ -156,80 +194,16 @@ body {
   margin-top: 4px;
   text-align: right;
 }
-
-
-/* --- カードの固定高さ（揺れ防止） --- */
-.card-big {
-  height: 180px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.card-small {
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* --- 上段の比率調整（右へ3mm相当） --- */
-.top-row {
-  display: grid;
-  grid-template-columns: 2.2fr 1fr; /* 2 → 2.2 に変更 */
-  gap: 10px;
-  margin-top: 16px;
-}
-
-/* --- 中段の比率調整（累積Exを2mm細く） --- */
-.mid-row {
-  display: grid;
-  grid-template-columns: 0.95fr 1fr 1fr; /* 左を少し細く */
-  gap: 10px;
-  margin-top: 16px;
-}
-
-/* --- 下段の比率調整（ボタンの左右に2mm余白） --- */
-.bottom-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 16px;
-  padding-left: 2mm;   /* 左端を2mm右へ */
-  padding-right: 2mm;  /* 右端を2mm右へ */
-}
-
-/* --- ボタンを横長にする --- */
-.button-grid button {
-  width: 100%;
-  height: 48px; /* 横長に見える高さ */
-  padding: 6px 4px;
-  font-size: 1.2em;
-  line-height: 1.2em;
-  box-sizing: border-box;
-}
-
-/* --- 数字の揺れ防止（等幅フォント） --- */
-.card-value {
-  font-family: "Roboto Mono", "Menlo", "Courier New", monospace;
-}
-
-
-
-
 </style>
 </head>
 
 <body>
 
-<!-- タイトル -->
 <div id="title-row">
   <div id="appTitle">GeoMETs+</div>
   <div id="appVersion">Final</div>
 </div>
 
-<!-- 設定 -->
 <div class="settings-grid">
   <div id="labelLanguage">言語</div>
   <div>JST / UTC</div>
@@ -274,22 +248,22 @@ body {
   </div>
 
 </div>
+
 <!-- 中段 -->
 <div class="mid-row">
 
   <div class="card-small">
     <div class="card-label" id="labelCumEx">累積</div>
     <div class="card-value" id="cumExValue">0.00</div>
-    <div class="card-unit">Ex</div>
+    <div id="cumExUnit">Ex</div>
   </div>
 
   <div class="card-small">
     <div class="card-label" id="labelCumKm">累積</div>
     <div class="card-value" id="cumKmValue">
-      <span id="cumKmValueKm">0 km</span>
-      <span id="cumKmValueM">0 m</span>
+      <span id="cumKmValueKm">0</span>
+      <span id="cumKmValueM">0</span>
     </div>
-    <div class="card-unit">km / m</div>
   </div>
 
   <div class="card-small">
@@ -312,10 +286,17 @@ body {
   </div>
 
   <div class="button-grid">
-    <button id="startBtn">開始</button>
-    <button id="resetBtn">リセット</button>
-    <button id="weightBtn">体重変更</button>
-    <button id="saveBtn">保存</button>
+
+    <div class="button-col">
+      <button id="startBtn">開始</button>
+      <button id="weightBtn">体重変更</button>
+    </div>
+
+    <div class="button-col">
+      <button id="resetBtn">リセット</button>
+      <button id="saveBtn">保存</button>
+    </div>
+
   </div>
 
 </div>
@@ -363,7 +344,7 @@ const i18n = {
   }
 };
 
-/* ===== 言語適用 ===== */
+/* 言語適用 */
 function applyLanguage() {
   const t = i18n[langSelect.value];
 
@@ -385,7 +366,6 @@ function applyLanguage() {
     gpsStatus.style.color === "green" ? t.gpsOK : t.gpsLost;
 }
 
-/* 言語切替イベント */
 langSelect.addEventListener("change", applyLanguage);
 
 /* ===== 状態 ===== */
@@ -470,6 +450,7 @@ navigator.geolocation.watchPosition(
   },
   { enableHighAccuracy: true }
 );
+
 /* 平均 */
 function avg(arr) {
   if (arr.length === 0) return 0;
@@ -486,8 +467,8 @@ function updateDisplay() {
 
   const kmInt = Math.floor(cumKm);
   const mInt  = Math.round((cumKm - kmInt) * 1000);
-  cumKmValueKm.textContent = kmInt + " km";
-  cumKmValueM.textContent  = mInt  + " m";
+  cumKmValueKm.textContent = kmInt;
+  cumKmValueM.textContent  = mInt;
 
   cumUpValue.textContent = Math.round(cumUp);
   cumDownValue.textContent = Math.round(cumDown);
@@ -595,7 +576,7 @@ weightBtn.addEventListener("click", () => {
   }
 });
 
-/* Excel保存 */
+/* Excel保存（iOS対応版） */
 function saveExcel() {
   const wsData = [
     ["Time Start", "Time End", "Avg METs", "Avg Speed", "Alt Change",
@@ -626,10 +607,28 @@ function saveExcel() {
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   XLSX.utils.book_append_sheet(wb, ws, "GeoMETs");
 
-  XLSX.writeFile(wb, "geomets_session.xlsx");
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
+
+  const buf = new ArrayBuffer(wbout.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+
+  const blob = new Blob([buf], { type: "application/octet-stream" });
+  const reader = new FileReader();
+
+  reader.onload = function() {
+    const a = document.createElement("a");
+    a.href = reader.result;
+    a.download = "geomets_session.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  reader.readAsDataURL(blob);
 }
 
-/* GPX保存 */
+/* GPX保存（iOS対応版） */
 function saveGPX() {
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="GeoMETs+">
@@ -651,7 +650,7 @@ function saveGPX() {
 
   reader.onload = function() {
     const a = document.createElement("a");
-    a.href = reader.result;  // data URL
+    a.href = reader.result;
     a.download = "geomets_track.gpx";
     document.body.appendChild(a);
     a.click();
@@ -660,7 +659,6 @@ function saveGPX() {
 
   reader.readAsDataURL(blob);
 }
-
 
 /* 保存（Excel → ダイアログ → GPX） */
 saveBtn.addEventListener("click", () => {
