@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GeoMETs+ Functional Final</title>
+<title>GeoMETs+ Final</title>
 
 <style>
 body {
@@ -60,7 +60,7 @@ body {
 
 /* 主役：平均METs */
 .card-big .card-value {
-  font-size: 5.0em;
+  font-size: 6.0em;
   font-weight: 900;
   text-align: center;
   line-height: 1.0;
@@ -73,11 +73,14 @@ body {
 
 /* 他の数字 */
 .card-small .card-value {
-  font-size: 2.4em;
   font-weight: 800;
   text-align: center;
   line-height: 1.0;
 }
+#avgSpeedValue { font-size: 2.2em; }
+#cumKmValue { font-size: 2.1em; }
+#cumExValue { font-size: 2.2em; }
+#cumKcalValue { font-size: 2.2em; }
 .card-small .card-unit {
   font-size: 1.0em;
   text-align: center;
@@ -122,6 +125,7 @@ body {
   width: 100%;
   padding: 8px 4px;
   font-size: 1.1em;
+  line-height: 1.4em;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
@@ -150,7 +154,7 @@ body {
 <!-- タイトル -->
 <div id="title-row">
   <div id="appTitle">GeoMETs+</div>
-  <div id="appVersion">Functional Final</div>
+  <div id="appVersion">Final</div>
 </div>
 
 <!-- 設定 -->
@@ -203,19 +207,19 @@ body {
 <div class="mid-row">
 
   <div class="card-small">
-    <div class="card-label" id="labelCumEx">累積</div>
-    <div class="card-value" id="cumExValue">0.0</div>
+    <div class="card-label" id="labelCumEx">累積 Ex</div>
+    <div class="card-value" id="cumExValue">0.00</div>
     <div class="card-unit" id="unitEx">Ex</div>
   </div>
 
   <div class="card-small">
-    <div class="card-label" id="labelCumKm">累積</div>
+    <div class="card-label" id="labelCumKm">累積 km</div>
     <div class="card-value" id="cumKmValue">0.000</div>
     <div class="card-unit" id="unitKm">km</div>
   </div>
 
   <div class="card-small">
-    <div class="card-label" id="labelCumUpDown">累積</div>
+    <div class="card-label" id="labelCumUpDown">累積(上り/下り)</div>
     <div class="card-value">
       <span id="cumUpValue">0</span>/<span id="cumDownValue">0</span>
     </div>
@@ -228,7 +232,7 @@ body {
 <div class="bottom-row">
 
   <div class="card-small">
-    <div class="card-label" id="labelCumKcal">累積</div>
+    <div class="card-label" id="labelCumKcal">累積 kcal</div>
     <div class="card-value" id="cumKcalValue">0</div>
     <div class="card-unit" id="unitKcal">kcal</div>
   </div>
@@ -284,8 +288,10 @@ navigator.geolocation.watchPosition(
 
     lastAltitude = alt;
 
-    currentSpeed = pos.coords.speed ?? 0;
-    currentMets = Math.max(1, 1 + (currentSpeed - 1) * 0.7);
+    /* speed は m/s → km/h に変換 */
+    currentSpeed = (pos.coords.speed ?? 0) * 3.6;
+
+    currentMets = Math.max(1, 1 + (currentSpeed - 1) * 0.2);
   },
   err => {
     gpsStatus.textContent = currentLang === "ja" ? "GPS未捕捉" : "GPS lost";
@@ -306,7 +312,7 @@ function updateDisplay() {
   avgSpeedValue.textContent = avgSpeed.toFixed(1);
   altChangeValue.textContent = avgAltChange.toFixed(1);
 
-  cumExValue.textContent = cumEx.toFixed(1);
+  cumExValue.textContent = cumEx.toFixed(2);
   cumKmValue.textContent = cumKm.toFixed(3);
   cumUpValue.textContent = Math.round(cumUp);
   cumDownValue.textContent = Math.round(cumDown);
@@ -402,7 +408,7 @@ saveBtn.addEventListener("click", () => {
     ["Average METs", avgMets.toFixed(1)],
     ["Average Speed", avgSpeed.toFixed(1)],
     ["Altitude Change", avgAltChange.toFixed(1)],
-    ["Cumulative Ex", cumEx.toFixed(1)],
+    ["Cumulative Ex", cumEx.toFixed(2)],
     ["Cumulative Distance", cumKm.toFixed(3)],
     ["Cumulative Up", Math.round(cumUp)],
     ["Cumulative Down", Math.round(cumDown)],
@@ -468,10 +474,10 @@ function applyLang(lang) {
   labelAvgSpeed.textContent = t.avg30;
   labelAltChange.textContent = t.alt;
 
-  labelCumEx.textContent = t.cumulative;
-  labelCumKm.textContent = t.cumulative;
-  labelCumUpDown.textContent = t.cumulative;
-  labelCumKcal.textContent = t.cumulative;
+  labelCumEx.textContent = t.cumulative + " Ex";
+  labelCumKm.textContent = t.cumulative + " km";
+  labelCumUpDown.textContent = t.cumulative + "(Up/Down)";
+  labelCumKcal.textContent = t.cumulative + " kcal";
 
   weightBtn.innerHTML = t.weight;
 
