@@ -62,7 +62,7 @@
     align-items: baseline;
     gap: 3px;
   }
-  #app-plus { font-size: 0.65em; font-weight: 700; color: #e07b10; }
+  #app-plus { font-size: 1em; font-weight: 800; color: #e07b10; vertical-align: baseline; }
   #app-version { font-size: 0.68em; color: var(--text-sub); margin-top: 1px; }
   #app-subtitle { font-size: 0.74em; color: var(--text-sub); margin-top: 2px; line-height: 1.35; }
   #header-right {
@@ -296,7 +296,6 @@
   #stop-btn {
     background: var(--stop-color);
     box-shadow: 0 4px 14px rgba(192,57,43,0.32);
-    display: none; /* hidden until measuring */
   }
   #stop-btn:active { background: var(--stop-dark); transform: scale(0.97); }
 
@@ -464,7 +463,7 @@
       <div class="cum-row">
         <div class="cum-cell">
           <div class="cum-cell-label">Ex (METs·<span data-i18n="hour">時</span>)</div>
-          <div class="cum-cell-value" id="cum-ex">0.000</div>
+          <div class="cum-cell-value" id="cum-ex">0.00</div>
         </div>
         <div class="cum-cell">
           <div class="cum-cell-label" data-i18n="cumKcal">累積 kcal</div>
@@ -519,7 +518,7 @@
   <!-- START / STOP — always visible row -->
   <div id="start-stop-row">
     <button id="start-btn" data-i18n="start">START</button>
-    <button id="stop-btn" data-i18n="stop">STOP</button>
+    <button id="stop-btn" data-i18n="stop" style="display:none">STOP</button>
   </div>
 
   <!-- Save row (shown after STOP) -->
@@ -602,9 +601,9 @@ const T = {
     changeWeight:   "体重変更",
     idleMsg:        "STARTを押して計測を開始してください",
     elapsedTime:    "経過時間",
-    activityLevel:  "身体活動水準",
+    activityLevel:  "身体活動水準（直近30秒）",
     activityAmount: "身体活動量（累積）",
-    cumKcal:        "累積 kcal",
+    cumKcal:        "総 kcal",
     hour:           "時",
     tabCurrent:     "直近30秒",
     tabCumulative:  "累積",
@@ -643,9 +642,9 @@ const T = {
     changeWeight:   "Change BW",
     idleMsg:        "Press START to begin measurement",
     elapsedTime:    "Elapsed",
-    activityLevel:  "Activity Level",
+    activityLevel:  "Activity Level (Last 30s)",
     activityAmount: "Activity Amount (Cumul.)",
-    cumKcal:        "Cumul. kcal",
+    cumKcal:        "Total kcal",
     hour:           "h",
     tabCurrent:     "Last 30s",
     tabCumulative:  "Cumulative",
@@ -947,7 +946,7 @@ function doStart() {
 
   // Show STOP, hide START
   document.getElementById("start-btn").style.display = "none";
-  document.getElementById("stop-btn").style.display  = "";
+  document.getElementById("stop-btn").style.display  = "block";
 
   document.getElementById("save-row").style.display = "none";
   document.getElementById("summary-card").classList.remove("visible");
@@ -992,7 +991,7 @@ function resetLiveDisplay() {
   document.getElementById("mets-value").style.color = "var(--mets-low)";
   document.getElementById("kcalmin-value").textContent = "-- kcal/min";
   document.getElementById("motion-badge").textContent = "--";
-  document.getElementById("cum-ex").textContent = "0.000";
+  document.getElementById("cum-ex").textContent = "0.00";
   document.getElementById("cum-kcal").textContent = "0";
   document.getElementById("cur-speed").textContent = "--";
   document.getElementById("cur-alt").textContent = "--";
@@ -1019,7 +1018,7 @@ function doStop() {
 
   // Show START again, hide STOP
   document.getElementById("stop-btn").style.display  = "none";
-  document.getElementById("start-btn").style.display = "";
+  document.getElementById("start-btn").style.display = "block";
 
   if (sessionData.length > 0) {
     document.getElementById("save-row").style.display = "flex";
@@ -1145,11 +1144,11 @@ function updateLiveDisplay(e) {
   document.getElementById("kcalmin-value").textContent = `${kcalMinRate.toFixed(2)} kcal/min`;
 
   // Cumulative (always-visible panel)
-  document.getElementById("cum-ex").textContent = e.cumEx.toFixed(3);
+  document.getElementById("cum-ex").textContent = e.cumEx.toFixed(2);
   document.getElementById("cum-kcal").textContent = Math.round(e.cumKcal);
 
   // Tab: current 30s
-  document.getElementById("cur-speed").textContent = `${e.speedKmh.toFixed(1)} km/h`;
+  document.getElementById("cur-speed").textContent = `${e.speedKmh.toFixed(2)} km/h`;
   const sign = e.dh > 0 ? "+" : "";
   document.getElementById("cur-alt").textContent = `${sign}${e.dh.toFixed(1)} m`;
 
@@ -1196,7 +1195,7 @@ function showSummary() {
   document.getElementById("sum-max-mets").textContent = maxMETs.toFixed(1);
   document.getElementById("sum-max-mets").style.color = metsColor(maxMETs);
   document.getElementById("sum-avg-kcalmin").textContent = `${avgKcalMin.toFixed(2)} kcal/min`;
-  document.getElementById("sum-ex").textContent   = last.cumEx.toFixed(3);
+  document.getElementById("sum-ex").textContent   = last.cumEx.toFixed(2);
   document.getElementById("sum-kcal").textContent = Math.round(last.cumKcal);
   document.getElementById("sum-time").textContent = fmtHMS(totalSec);
   document.getElementById("sum-dist").textContent = `${(last.cumDist/1000).toFixed(3)} km`;
