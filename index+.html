@@ -601,7 +601,7 @@ const T = {
     changeWeight:   "体重変更",
     idleMsg:        "STARTを押して計測を開始してください",
     elapsedTime:    "経過時間",
-    activityLevel:  "身体活動水準（直近30秒）",
+    activityLevel:  "身体活動水準",
     activityAmount: "身体活動量（累積）",
     cumKcal:        "総 kcal",
     hour:           "時",
@@ -642,7 +642,7 @@ const T = {
     changeWeight:   "Change BW",
     idleMsg:        "Press START to begin measurement",
     elapsedTime:    "Elapsed",
-    activityLevel:  "Activity Level (Last 30s)",
+    activityLevel:  "Activity Level",
     activityAmount: "Activity Amount (Cumul.)",
     cumKcal:        "Total kcal",
     hour:           "h",
@@ -1214,6 +1214,25 @@ document.getElementById("save-excel-btn").addEventListener("click", () => {
   if (confirm(t("saveGpxQ"))) doSaveGPX();
 });
 
+async function sharOrDownload(blob, filename) {
+  if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: blob.type })] })) {
+    try {
+      await navigator.share({ files: [new File([blob], filename, { type: blob.type })] });
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement("a");
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function doSaveExcel() {
   const last      = sessionData[sessionData.length - 1];
   const totalSec  = Math.floor((last.time - startTime) / 1000);
@@ -1262,7 +1281,10 @@ function doSaveExcel() {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "GeoMETs+ Data");
-  XLSX.writeFile(wb, `GeoMETs+_${getNowStr()}.xlsx`);
+  const filename = `GeoMETs+_${getNowStr()}.xlsx`;
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  sharOrDownload(blob, filename);
 }
 
 /* ==========================================================
@@ -1286,11 +1308,7 @@ function doSaveGPX() {
   xml += `  </trkseg></trk>\n</gpx>`;
 
   const blob = new Blob([xml], { type: "application/gpx+xml" });
-  const a    = document.createElement("a");
-  a.href     = URL.createObjectURL(blob);
-  a.download = `GeoMETs+_${getNowStr()}.gpx`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  sharOrDownload(blob, `GeoMETs+_${getNowStr()}.gpx`);
 }
 
 /* ==========================================================
