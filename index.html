@@ -492,7 +492,7 @@
     <div class="section-label" data-i18n="activityLevel">身体活動水準</div>
     <div id="mets-big-row">
       <div id="mets-big-value">--</div>
-      <div id="mets-big-unit">METs</div>
+      <div id="mets-big-unit">METs<span id="mets-avg-label" style="font-size:0.62em; font-weight:600; color:var(--text-sub); margin-left:3px;" data-i18n="metsAvgLabel">（平均）</span></div>
     </div>
     <div id="mets-max-row">
       Max METs: <span id="mets-max-val">--</span>
@@ -598,6 +598,7 @@ const T = {
     selectFile:     "GPXファイルを選択してください",
     noData:         "データがありません。先に計算を実行してください",
     unknownFormat:  "対応していないファイル形式です（.gpx のみ対応）",
+    metsAvgLabel:   "（平均）",
   },
   en: {
     subtitle:       "Terrain-Adaptive GPS Physical Activity Assessment Tool",
@@ -631,6 +632,7 @@ const T = {
     selectFile:     "Please select a GPX file",
     noData:         "No data. Please run the calculation first",
     unknownFormat:  "Unsupported file format (only .gpx is supported)",
+    metsAvgLabel:   "(Avg)",
   }
 };
 
@@ -841,7 +843,7 @@ function slice20(points) {
   let isFirst = true;
 
   while (t2 < end) {
-    const t3 = new Date(t2.getTime() + 20000);
+    const t3 = new Date(t2.getTime() + 30000);
 
     if (isFirst) {
       segs.push({ start: { ...points[0], time: new Date(t2) }, end: { ...points[0], time: new Date(t3) } });
@@ -883,7 +885,7 @@ function processSegments(segs, bm) {
     if (d < 5)         continue;
     if (Math.abs(dh) > 5) continue;
 
-    const dt      = 20;
+    const dt      = 30;
     const v_mps   = d / dt;
     const running = v_mps >= 1.11;
     const i       = Math.max(-0.5, Math.min(0.5, dh / d));
@@ -1035,7 +1037,7 @@ function showResult(res, segs) {
     else totalDown += Math.abs(r.dh);
   }
 
-  const totalTimeSec = segs.length * 20;
+  const totalTimeSec = segs.length * 30;
   const avgKcalMin   = totalKcal / (totalTimeSec / 60);
 
   // Time range
@@ -1068,36 +1070,92 @@ function showResult(res, segs) {
 }
 
 /* ==========================================================
+   Share / download helper (Web Share API → fallback)
+========================================================== */
+async function shareOrDownload(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement("a");
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ==========================================================
    Save Excel
 ========================================================== */
 document.getElementById("save-btn").addEventListener("click", () => {
   if (!lastResult) { alert(t("noData")); return; }
 
   const res = lastResult;
-  const rows = [[
+
+  // Summary stats
+  const avgMETs      = res.reduce((s, r) => s + r.METs, 0) / res.length;
+  const maxMETs      = res.reduce((m, r) => r.METs > m ? r.METs : m, 0);
+  const last         = res[res.length - 1];
+  const totalTimeSec = res.length * 30;
+  let totalDist = 0, totalUp = 0, totalDown = 0;
+  for (const r of res) {
+    totalDist += r.d;
+    if (r.dh > 0) totalUp += r.dh; else totalDown += Math.abs(r.dh);
+  }
+
+  // Sheet 1: 20-second interval data
+  const dataRows = [[
     "Index","Time","Altitude(m)","Distance(m)","Alt.Delta(m)","Speed(km/h)",
-    "METs","kcal/min","Cumul.Dist(m)","Cumul.Ex","Cumul.kcal"
+    "METs","kcal/min","Cumul.Dist(m)","Cumul.Ex(METs·h)","Cumul.kcal"
   ]];
   res.forEach((r, i) => {
-    rows.push([
+    dataRows.push([
       i+1,
       r.start.toISOString(),
-      r.alt,
-      r.d.toFixed(2),
-      r.dh.toFixed(2),
-      r.speed.toFixed(2),
-      r.METs.toFixed(2),
-      r.Ek.toFixed(2),
-      r.cumDist.toFixed(2),
-      r.exCum.toFixed(2),
-      r.kcalCum.toFixed(2)
+      parseFloat(r.alt.toFixed(2)),
+      parseFloat(r.d.toFixed(2)),
+      parseFloat(r.dh.toFixed(2)),
+      parseFloat(r.speed.toFixed(2)),
+      parseFloat(r.METs.toFixed(2)),
+      parseFloat(r.Ek.toFixed(2)),
+      parseFloat(r.cumDist.toFixed(2)),
+      parseFloat(r.exCum.toFixed(4)),
+      parseFloat(r.kcalCum.toFixed(2))
     ]);
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "20sec Data");
-  XLSX.writeFile(wb, `GeoMETs_${getNowForFilename()}.xlsx`);
+  // Sheet 2: Summary
+  const sumRows = [
+    ["--- Summary ---"],
+    ["Avg METs",        parseFloat(avgMETs.toFixed(2))],
+    ["Max METs",        parseFloat(maxMETs.toFixed(2))],
+    ["Ex (METs·h)",     parseFloat(last.exCum.toFixed(4))],
+    ["Total kcal",      Math.round(last.kcalCum)],
+    ["Avg kcal/min",    parseFloat((last.kcalCum / (totalTimeSec / 60)).toFixed(3))],
+    ["Total time (s)",  totalTimeSec],
+    ["Total dist (m)",  parseFloat(totalDist.toFixed(2))],
+    ["Ascent (m)",      Math.round(totalUp)],
+    ["Descent (m)",     Math.round(totalDown)],
+  ];
+
+  const wsData = XLSX.utils.aoa_to_sheet(dataRows);
+  const wsSum  = XLSX.utils.aoa_to_sheet(sumRows);
+  const wb     = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsSum,  "Summary");
+  XLSX.utils.book_append_sheet(wb, wsData, "30sec Data");
+
+  const wbout   = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob    = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const filename = `GeoMETs_${getNowForFilename()}.xlsx`;
+  shareOrDownload(blob, filename);
 });
 
 /* ==========================================================
@@ -1111,7 +1169,7 @@ document.getElementById("graph-btn").addEventListener("click", () => {
 });
 
 function renderGraph(res) {
-  const timeMin  = res.map((r, i) => (i * 20) / 60);
+  const timeMin  = res.map((r, i) => (i * 30) / 60);
   const totalMin = timeMin[timeMin.length-1];
 
   let lineWidth = 2;
@@ -1229,10 +1287,10 @@ document.getElementById("save-graph-btn").addEventListener("click", () => {
   tctx.fillRect(0, 0, tmp.width, tmp.height);
   tctx.drawImage(canvas, 0, 0);
 
-  const a    = document.createElement("a");
-  a.href     = tmp.toDataURL("image/png");
-  a.download = `GeoMETs_figure_${getNowForFilename()}.png`;
-  a.click();
+  const filename = `GeoMETs_figure_${getNowForFilename()}.png`;
+  tmp.toBlob((blob) => {
+    shareOrDownload(blob, filename);
+  }, "image/png");
 });
 
 /* ==========================================================
