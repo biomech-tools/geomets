@@ -2,10 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>GeoMETs – Terrain-Adaptive GPS Physical Activity Assessment Tool</title>
 
-<!-- PWA: manifest & service worker -->
 <link rel="manifest" href="manifest.json">
 <script>
   if ("serviceWorker" in navigator) {
@@ -13,384 +12,772 @@
   }
 </script>
 
-<!-- Excel 出力用 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<!-- グラフ描画用 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-  font-family: sans-serif;
-  padding: 10px;
+  :root {
+    --primary: #1a6fb5;
+    --primary-dark: #145a94;
+    --start-color: #1a8c3e;
+    --start-dark: #136b2f;
+    --mets-low: #555555;
+    --mets-mid: #1a8c3e;
+    --mets-high: #c0392b;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --text: #1a1a2e;
+    --text-sub: #666;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.09);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 10px 10px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
 
-  max-width: 480px;
-  margin: 0 auto;
-  background: white;
-  padding: 10px;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.35);
-}
-h2 {
-  margin-top: 5px;
-}
-button, select {
-  font-size: 1.1em;
-  padding: 8px;
-  margin: 5px 0;
-  width: 100%;
-}
-input {
-  font-size: 1.1em;
-  padding: 8px;
-  margin: 5px 0;
-  width: auto;
-}
-#result {
-  margin-top: 20px;
-  padding: 10px;
-  border: 1px solid #aaa;
-}
-.hidden {
-  display: none;
-}
-label {
-  display: block;
-}
+  /* ---- Header ---- */
+  #header {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 11px 14px 10px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  #header-left { display: flex; flex-direction: column; gap: 1px; }
+  #app-title {
+    font-size: 1.75em;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--primary);
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  #app-version { font-size: 0.68em; color: var(--text-sub); margin-top: 1px; }
+  #app-subtitle { font-size: 0.74em; color: var(--text-sub); margin-top: 2px; line-height: 1.35; }
+  #header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  #lang-btn {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 15px;
+    font-size: 0.82em;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 48px;
+    text-align: center;
+  }
+  #lang-btn:active { background: var(--primary-dark); }
+  #reload-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.78em;
+    color: var(--text-sub);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #reload-btn:active { background: #f0f2f5; }
 
-/* 上段3カラム */
-.row3 {
-  display: flex;
-  gap: 8px;
-}
-.row3 > .col-lang   { flex: 1.0; }
-.row3 > .col-tz     { flex: 0.8; }
-.row3 > .col-model  { flex: 1.2; }
+  /* ---- Config card ---- */
+  #config-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .config-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .config-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+  .config-col.col-tz { flex: 0.7; }
+  .config-col.col-model { flex: 1.3; }
+  .config-label {
+    font-size: 0.69em;
+    font-weight: 700;
+    color: var(--text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .config-select {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.88em;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+  }
+  .config-select:focus { border-color: var(--primary); }
 
-/* 計算実行ボタン（全幅） */
-#processBtn {
-  width: 100%;
-  font-size: 1.2em;
-  padding: 10px;
-}
+  /* ---- Info bar ---- */
+  #info-bar {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  #weight-display { font-size: 0.86em; color: var(--text-sub); }
+  #weight-val { font-weight: 700; color: var(--text); }
+  #change-weight-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 0.80em;
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #change-weight-btn:active { background: #eef4fb; }
 
-/* 体重変更・データ保存・グラフ表示（3 つ横並び） */
-.row3btn {
-  display: flex;
-  gap: 8px;
-}
-#changeWeightBtn { flex: 1; }
-#saveBtn         { flex: 1; }
-#graphBtn        { flex: 1; }
+  /* ---- File card ---- */
+  #file-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #file-select-btn {
+    flex-shrink: 0;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.88em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.13s;
+  }
+  #file-select-btn:active { background: var(--primary-dark); }
+  #file-name {
+    flex: 1;
+    font-size: 0.82em;
+    color: var(--text-sub);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #file-name.loaded { color: var(--text); font-weight: 600; }
 
-/* ファイル選択行 */
-#fileRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 5px;
-}
-#fileBtn {
-  width: 50%;
-  margin-top: 0;
-}
-#fileName {
-  flex: 1;
-}
-#fileLabel {
-  margin-top: 4px;
-  margin-bottom: 0;
-}
+  /* ---- Process button ---- */
+  #process-btn {
+    width: 100%;
+    background: var(--start-color);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 18px 10px;
+    font-size: 1.35em;
+    font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(26,140,62,0.28);
+    transition: all 0.14s;
+  }
+  #process-btn:active { background: var(--start-dark); transform: scale(0.98); }
 
-#result {
-  border: none;
-}
+  /* ---- Save / Graph row ---- */
+  #action-row {
+    display: none;
+    gap: 8px;
+  }
+  .action-btn {
+    flex: 1;
+    background: var(--card);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 12px 8px;
+    font-size: 0.88em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.13s;
+    white-space: nowrap;
+  }
+  .action-btn:active { background: #eef4fb; }
 
-/* タイトルまわり */
-#title {
-  margin-top: 8px;
-  margin-bottom: 0px;
-  font-size: 2em;
-  font-weight: bold;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
+  /* ---- Result card ---- */
+  #result-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+    display: none;
+  }
+  #result-card.visible { display: block; }
+  #result-title {
+    font-size: 0.95em;
+    font-weight: 800;
+    color: var(--text);
+    padding-bottom: 7px;
+    margin-bottom: 10px;
+    border-bottom: 2.5px solid var(--primary);
+  }
 
-#version {
-  font-size: 0.8rem;
-  color: #555;
-  margin-left: 12px;   /* ← これでスペースができる */
-}
+  .section-label {
+    font-size: 0.69em;
+    font-weight: 700;
+    color: var(--text-sub);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
 
-#subtitle {
-  font-size: 0.9em;
-  color: #444;
-  margin-top: -4px;
-  margin-bottom: 12px;
-}
-#title {
-  margin-top: 8px;
-  margin-bottom: 0px;
-  font-size: 2em;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: space-between; 
-  gap: 10px;
-}
+  /* METs big display */
+  #mets-big-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  #mets-big-value {
+    font-size: 4.2em;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  #mets-big-unit { font-size: 1.05em; font-weight: 600; color: var(--text-sub); }
+  #mets-max-row {
+    font-size: 0.95em;
+    color: var(--text-sub);
+    margin-bottom: 12px;
+  }
+  #mets-max-val { font-weight: 700; color: var(--text); }
 
-#reloadBtn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: #eee;
-  font-size: 16px;  
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-}
+  .sum-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .sum-cell {
+    background: #f4f7fb;
+    border-radius: 8px;
+    padding: 9px 10px;
+  }
+  .sum-cell.full { grid-column: 1 / -1; }
+  .sum-label { font-size: 0.68em; color: var(--text-sub); font-weight: 600; margin-bottom: 3px; }
+  .sum-value { font-size: 1.10em; font-weight: 700; color: var(--text); }
+  .sum-value.big { font-size: 1.45em; }
+  .sum-value.accent { color: var(--primary); }
 
+  /* Time range badge */
+  #time-range-badge {
+    display: inline-block;
+    background: #eef4fb;
+    color: var(--primary);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.78em;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+
+  /* ---- Graph card ---- */
+  #graph-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+    display: none;
+  }
+  #graph-card.visible { display: block; }
+  #graph-title {
+    font-size: 0.90em;
+    font-weight: 800;
+    color: var(--text);
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    border-bottom: 2.5px solid var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #save-graph-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.76em;
+    color: var(--primary);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #save-graph-btn:active { background: #eef4fb; }
+  #graph-canvas-wrap { position: relative; }
+
+  /* ---- Modal ---- */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.48);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #modal-overlay.visible { display: flex; }
+  #modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 20px 20px;
+    width: 100%;
+    max-width: 300px;
+    box-shadow: 0 8px 36px rgba(0,0,0,0.22);
+  }
+  #modal-title { font-size: 1.05em; font-weight: 800; margin-bottom: 8px; }
+  #modal-msg { font-size: 0.84em; color: var(--text-sub); margin-bottom: 13px; line-height: 1.5; }
+  #modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1.1em;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    margin-bottom: 14px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  #modal-input:focus { border-color: var(--primary); }
+  #modal-btns { display: flex; gap: 8px; }
+  .m-btn {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.95em;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #modal-ok { background: var(--primary); color: #fff; }
+  #modal-cancel { background: #f0f2f5; color: var(--text); }
+
+  /* ---- Copyright ---- */
+  #copyright {
+    text-align: center;
+    font-size: 0.64em;
+    color: #b0b8c4;
+    padding: 2px 0 6px;
+  }
+
+  /* hidden file input */
+  #file-input { display: none; }
 </style>
 </head>
-
 <body>
+<div id="app">
 
-<h2 id="title">
-  <span>
-    GeoMETs <span id="version">V1.0 Beta</span>
-  </span>
-  <button id="reloadBtn">🔄</button>
-</h2>
-<div id="subtitle">地形対応 GPS 身体活動量評価ツール</div>
-
-<!-- 上段3カラム -->
-<div class="row3">
-  <div class="col-lang">
-    <label id="langLabel">言語 / Language</label>
-    <select id="langSelect">
-      <option value="ja">日本語</option>
-      <option value="en">English</option>
-    </select>
+  <!-- Header -->
+  <div id="header">
+    <div id="header-left">
+      <div id="app-title">GeoMETs</div>
+      <div id="app-version">V1.0 Beta</div>
+      <div id="app-subtitle" data-i18n="subtitle">地形対応 GPS 身体活動量評価ツール</div>
+    </div>
+    <div id="header-right">
+      <button id="lang-btn">EN</button>
+      <button id="reload-btn" data-i18n="reload">リセット</button>
+    </div>
   </div>
 
-  <div class="col-tz">
-    <label id="tzLabel">JST / UTC</label>
-    <select id="tzSelect">
-      <option value="JST">JST</option>
-      <option value="UTC">UTC</option>
-    </select>
+  <!-- Config card -->
+  <div id="config-card">
+    <div class="config-row">
+      <div class="config-col col-tz">
+        <div class="config-label" data-i18n="tzLabel">JST / UTC</div>
+        <select class="config-select" id="tz-select">
+          <option value="JST">JST</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div class="config-col col-model">
+        <div class="config-label" data-i18n="timeModelLabel">時刻モデル</div>
+        <select class="config-select" id="time-model-select">
+          <option value="none">Use Time Data</option>
+          <option value="tobler">Tobler Estimation</option>
+        </select>
+      </div>
+    </div>
   </div>
 
-  <div class="col-model">
-    <label id="timeGenLabel">時刻モデル</label>
-    <select id="timeGenSelect">
-      <option value="none">Use Time Data</option>
-      <option value="tobler">Tobler Estimation</option>
-    </select>
+  <!-- Info bar (body weight) -->
+  <div id="info-bar">
+    <div id="weight-display">
+      <span data-i18n="bodyweight">体重</span>: <span id="weight-val">--</span> kg
+    </div>
+    <button id="change-weight-btn" data-i18n="changeWeight">体重変更</button>
+  </div>
+
+  <!-- File card -->
+  <div id="file-card">
+    <div class="config-label" data-i18n="fileLabel">GPSファイルを選択 (*.gpx)</div>
+    <div id="file-row">
+      <button id="file-select-btn" data-i18n="fileBtn">ファイル選択</button>
+      <div id="file-name" data-i18n="noFile">(No file)</div>
+    </div>
+    <input type="file" id="file-input" accept=".gpx">
+  </div>
+
+  <!-- Process button -->
+  <button id="process-btn" data-i18n="process">計算実行</button>
+
+  <!-- Save / Graph action row -->
+  <div id="action-row">
+    <button class="action-btn" id="save-btn" data-i18n="saveData">データ保存</button>
+    <button class="action-btn" id="graph-btn" data-i18n="showGraph">グラフ表示</button>
+  </div>
+
+  <!-- Result card -->
+  <div id="result-card">
+    <div id="result-title" data-i18n="resultTitle">解析結果</div>
+
+    <div class="section-label" data-i18n="activityLevel">身体活動水準</div>
+    <div id="mets-big-row">
+      <div id="mets-big-value">--</div>
+      <div id="mets-big-unit">METs</div>
+    </div>
+    <div id="mets-max-row">
+      Max METs: <span id="mets-max-val">--</span>
+    </div>
+
+    <div class="sum-grid">
+      <div class="sum-cell full">
+        <div class="sum-label">Ex (METs·<span data-i18n="hour">時</span>)</div>
+        <div class="sum-value big accent" id="sum-ex">--</div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-label" data-i18n="totalKcal">総 kcal</div>
+        <div class="sum-value big" id="sum-kcal">--</div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-label" data-i18n="avgKcalmin">平均 kcal/min</div>
+        <div class="sum-value" id="sum-kcalmin">--</div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:4px;" data-i18n="activityStats">活動統計</div>
+    <div class="sum-grid">
+      <div class="sum-cell full">
+        <div class="sum-label" data-i18n="totalTime">総時間</div>
+        <div class="sum-value" id="sum-time">--</div>
+      </div>
+      <div class="sum-cell full">
+        <div class="sum-label" data-i18n="totalDist">総距離</div>
+        <div class="sum-value" id="sum-dist">--</div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-label" data-i18n="ascent">上り</div>
+        <div class="sum-value" id="sum-up">--</div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-label" data-i18n="descent">下り</div>
+        <div class="sum-value" id="sum-down">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graph card -->
+  <div id="graph-card">
+    <div id="graph-title">
+      <span data-i18n="graphTitle">METs / 高度 グラフ</span>
+      <button id="save-graph-btn" data-i18n="saveGraph">グラフ保存</button>
+    </div>
+    <div id="graph-canvas-wrap">
+      <canvas id="graph-canvas" height="200"></canvas>
+    </div>
+  </div>
+
+  <div id="copyright">©2026 A. Azuma. All Rights Reserved.</div>
+</div>
+
+<!-- Modal (weight input) -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <div id="modal-msg"></div>
+    <input type="number" id="modal-input" inputmode="decimal" min="20" max="300" step="0.1">
+    <div id="modal-btns">
+      <button class="m-btn" id="modal-cancel" data-i18n="cancel">キャンセル</button>
+      <button class="m-btn" id="modal-ok" data-i18n="ok">OK</button>
+    </div>
   </div>
 </div>
-
-<div id="constantSpeedBox" class="hidden">
-  <label id="constSpeedLabel">速度 (km/h)</label>
-  <input type="number" id="constSpeedInput" value="3">
-</div>
-
-<label id="fileLabel">GPS ファイルを選択</label>
-
-<!-- ファイル選択行 -->
-<div id="fileRow">
-  <button id="fileBtn">ファイル選択</button>
-  <div id="fileName">(No file)</div>
-</div>
-<input type="file" id="fileInput" class="hidden">
-
-<!-- 計算実行（全幅） -->
-<button id="processBtn">計算実行</button>
-
-<!-- 体重変更・データ保存・グラフ表示（3つ横並び） -->
-<div class="row3btn">
-  <button id="changeWeightBtn">体重変更</button>
-  <button id="saveBtn">データ保存</button>
-  <button id="graphBtn">グラフ表示</button>
-</div>
-
-<div id="result"></div>
-
-<!-- グラフ表示エリア -->
-<div id="graphArea"></div>
 
 <script>
-/* ================================
-   i18n（localStorage 対応版）
-================================ */
-const i18n = {
+/* ==========================================================
+   i18n
+========================================================== */
+const T = {
   ja: {
-    title: "地形対応 GPS 身体活動量評価ツール",
-    langLabel: "言語",
-    tzLabel: "JST/UTC",
-    timeGenLabel: "時刻モデル",
-    constSpeedLabel: "速度 (km/h)",
-    fileLabel: "GPSファイルを選択 (*.gpx)",
-    fileBtn: "ファイル選択",
-    process: "計算実行",
-    weightChange: "体重変更",
-    mets: "平均 METs",
-    kcalmin: "平均 kcal/分",
-    ex: "Ex (METs･時)",
-    saveGraph: "グラフ保存",
-    saveData: "データ保存",
-    showGraph: "グラフ表示",
-    kcal: "総 kcal",
-    totalTime: "総時間",
-    totalDistance: "総距離",
-    ascentDescent: "上り/下り",
+    subtitle:       "地形対応 GPS 身体活動量評価ツール",
+    reload:         "リセット",
+    tzLabel:        "JST / UTC",
+    timeModelLabel: "時刻モデル",
+    bodyweight:     "体重",
+    changeWeight:   "体重変更",
+    fileLabel:      "GPSファイルを選択 (*.gpx)",
+    fileBtn:        "ファイル選択",
+    noFile:         "(No file)",
+    process:        "計算実行",
+    saveData:       "データ保存",
+    showGraph:      "グラフ表示",
+    resultTitle:    "解析結果",
+    activityLevel:  "身体活動水準",
+    activityStats:  "活動統計",
+    hour:           "時",
+    totalKcal:      "総 kcal",
+    avgKcalmin:     "平均 kcal/min",
+    totalTime:      "総時間",
+    totalDist:      "総距離",
+    ascent:         "上り",
+    descent:        "下り",
+    graphTitle:     "METs / 高度 グラフ",
+    saveGraph:      "グラフ保存",
+    cancel:         "キャンセル",
+    ok:             "OK",
+    wmTitle:        "体重入力",
+    wmMsg:          "体重を入力してください (kg)",
+    selectFile:     "GPXファイルを選択してください",
+    noData:         "データがありません。先に計算を実行してください",
+    unknownFormat:  "対応していないファイル形式です（.gpx のみ対応）",
   },
   en: {
-    title: "Terrain-Adaptive GPS Physical Activity Assessment Tool",
-    langLabel: "Language",
-    tzLabel: "JST / UTC",
-    timeGenLabel: "Time model",
-    constSpeedLabel: "Speed (km/h)",
-    fileLabel: "Select a GPS file (*.gpx)",
-    fileBtn: "Select File",
-    process: "Run calculation",
-    weightChange: "Change BW",
-    mets: "Average METs",
-    kcalmin: "Average kcal/min",
-    ex: "Ex (METs·hour)",
-    saveGraph: "Save graph",
-    saveData: "Save data",
-    showGraph: "Show graph",
-    kcal: "Total kcal",
-    totalTime: "Total time",
-    totalDistance: "Total distance",
-    ascentDescent: "Up / Down",
+    subtitle:       "Terrain-Adaptive GPS Physical Activity Assessment Tool",
+    reload:         "Reset",
+    tzLabel:        "JST / UTC",
+    timeModelLabel: "Time model",
+    bodyweight:     "Body weight",
+    changeWeight:   "Change BW",
+    fileLabel:      "Select a GPS file (*.gpx)",
+    fileBtn:        "Select File",
+    noFile:         "(No file)",
+    process:        "Run Calculation",
+    saveData:       "Save Data",
+    showGraph:      "Show Graph",
+    resultTitle:    "Analysis Results",
+    activityLevel:  "Activity Level",
+    activityStats:  "Activity Stats",
+    hour:           "h",
+    totalKcal:      "Total kcal",
+    avgKcalmin:     "Avg kcal/min",
+    totalTime:      "Total time",
+    totalDist:      "Total dist.",
+    ascent:         "Ascent",
+    descent:        "Descent",
+    graphTitle:     "METs / Altitude Graph",
+    saveGraph:      "Save Graph",
+    cancel:         "Cancel",
+    ok:             "OK",
+    wmTitle:        "Enter Body Weight",
+    wmMsg:          "Please enter your body weight (kg)",
+    selectFile:     "Please select a GPX file",
+    noData:         "No data. Please run the calculation first",
+    unknownFormat:  "Unsupported file format (only .gpx is supported)",
   }
 };
 
-let currentLang = "ja";
+let lang = localStorage.getItem("geomets_lang") || "ja";
+function t(k) { return T[lang][k] || k; }
 
-/* ★ i18n 適用 */
-function applyI18n() {
-  const t = i18n[currentLang];
-
-  document.getElementById("subtitle").textContent = t.title;
-
-  document.getElementById("langLabel").textContent = t.langLabel;
-  document.getElementById("tzLabel").textContent = t.tzLabel;
-  document.getElementById("timeGenLabel").textContent = t.timeGenLabel;
-  document.getElementById("constSpeedLabel").textContent = t.constSpeedLabel;
-  document.getElementById("fileLabel").textContent = t.fileLabel;
-  document.getElementById("fileBtn").textContent = t.fileBtn;
-  document.getElementById("processBtn").textContent = t.process;
-  document.getElementById("changeWeightBtn").textContent = t.weightChange;
-
-  document.getElementById("saveBtn").textContent = t.saveData;
-  document.getElementById("graphBtn").textContent = t.showGraph;
-
-  const saveGraphBtn = document.getElementById("saveGraphBtn");
-  if (saveGraphBtn) {
-    saveGraphBtn.textContent = t.saveGraph;
-  }
+function applyLang() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (T[lang][k] !== undefined) el.textContent = T[lang][k];
+  });
+  document.getElementById("lang-btn").textContent = lang === "ja" ? "EN" : "JA";
 }
 
-/* ★ 言語切り替え時：localStorage に保存 */
-document.getElementById("langSelect").addEventListener("change", (e) => {
-  currentLang = e.target.value;
-  localStorage.setItem("lang", currentLang);
-  applyI18n();
+document.getElementById("lang-btn").addEventListener("click", () => {
+  lang = lang === "ja" ? "en" : "ja";
+  localStorage.setItem("geomets_lang", lang);
+  applyLang();
 });
 
-/* ★ 起動時：localStorage から復元して適用 */
-window.addEventListener("load", () => {
-  const savedLang = localStorage.getItem("lang") || "ja";
-  currentLang = savedLang;
+/* ==========================================================
+   Body weight (modal)
+========================================================== */
+let bodymass = parseFloat(localStorage.getItem("geomets_bm") || "0");
 
-  // セレクトボックスの表示も合わせる
-  document.getElementById("langSelect").value = savedLang;
-
-  applyI18n();
-});
-
-
-
-/* ================================
-   UI イベント
-================================ */
-
-document.getElementById("langSelect").addEventListener("change", e => {
-  currentLang = e.target.value;
-  timeMode = currentLang === "ja" ? "JST" : "UTC";
-  document.getElementById("tzSelect").value = timeMode;
-  applyI18n();
-});
-
-document.getElementById("fileBtn").addEventListener("click", () => {
-  document.getElementById("fileInput").click();
-});
-
-document.getElementById("fileInput").addEventListener("change", e => {
-  // ★ 新しいファイルを読み込んだら UI を完全リセット
-  resetUI();
-
-  const f = e.target.files[0];
-  document.getElementById("fileName").textContent = f ? f.name : "(No file)";
-
-  // ★ 時刻生成モデルは毎回 none に戻す
-  document.getElementById("timeGenSelect").value = "none";
-});
-
-document.getElementById("tzSelect").addEventListener("change", e => {
-  timeMode = e.target.value;
-});
-
-
-/* ================================
-   体重管理
-================================ */
-function getBodyMass() {
-  let w = localStorage.getItem("bodymass");
-  if (!w) {
-    w = prompt(i18n[currentLang].weightPrompt);
-    if (!w) w = 60;
-    localStorage.setItem("bodymass", w);
-  }
-  return parseFloat(w);
+function updateWeightDisplay() {
+  document.getElementById("weight-val").textContent =
+    bodymass > 0 ? bodymass.toFixed(1) : "--";
 }
 
-document.getElementById("changeWeightBtn").addEventListener("click", () => {
-  const current = localStorage.getItem("bodymass") || "";
-  const w = prompt(i18n[currentLang].weightPrompt, current);
-  if (w) localStorage.setItem("bodymass", w);
-});
+function showWeightModal(cb) {
+  const overlay = document.getElementById("modal-overlay");
+  document.getElementById("modal-title").textContent = t("wmTitle");
+  document.getElementById("modal-msg").textContent = t("wmMsg");
+  const inp = document.getElementById("modal-input");
+  inp.value = bodymass > 0 ? bodymass : "";
+  inp.placeholder = "例: 65";
+  overlay.classList.add("visible");
+  setTimeout(() => inp.focus(), 80);
 
-/* ================================
-   ファイル形式判定
-================================ */
-function detectFormat(text) {
-  if (text.includes("<gpx")) return "gpx";
-  return "unknown";
+  const okBtn     = document.getElementById("modal-ok");
+  const cancelBtn = document.getElementById("modal-cancel");
+
+  const done = (saved) => {
+    overlay.classList.remove("visible");
+    okBtn.removeEventListener("click", onOk);
+    cancelBtn.removeEventListener("click", onCancel);
+    inp.removeEventListener("keydown", onKey);
+    if (cb) cb(saved);
+  };
+  const onOk = () => {
+    const v = parseFloat(inp.value);
+    if (!isNaN(v) && v >= 20 && v <= 300) {
+      bodymass = v;
+      localStorage.setItem("geomets_bm", v);
+      updateWeightDisplay();
+      done(true);
+    } else {
+      inp.style.borderColor = "red";
+      setTimeout(() => { inp.style.borderColor = ""; }, 800);
+    }
+  };
+  const onCancel = () => done(false);
+  const onKey    = (e) => { if (e.key === "Enter") onOk(); if (e.key === "Escape") onCancel(); };
+
+  okBtn.addEventListener("click", onOk);
+  cancelBtn.addEventListener("click", onCancel);
+  inp.addEventListener("keydown", onKey);
 }
 
-/* ================================
-   GPX パーサー
-================================ */
+document.getElementById("change-weight-btn").addEventListener("click", () => {
+  showWeightModal(() => {});
+});
+
+/* ==========================================================
+   TZ
+========================================================== */
+let currentTZ = localStorage.getItem("geomets_tz") || "JST";
+document.getElementById("tz-select").value = currentTZ;
+document.getElementById("tz-select").addEventListener("change", (e) => {
+  currentTZ = e.target.value;
+  localStorage.setItem("geomets_tz", currentTZ);
+});
+
+/* ==========================================================
+   Helpers
+========================================================== */
+function toRad(d) { return d * Math.PI / 180; }
+
+function dist2D(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2
+          + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function Cw(i) { return 280.5*i**5 - 58.7*i**4 - 76.8*i**3 + 51.9*i**2 + 19.6*i + 2.5; }
+function Cr(i) { return 155.4*i**5 - 30.4*i**4 - 43.3*i**3 + 46.3*i**2 + 19.5*i + 3.6; }
+
+function getNowForFilename() {
+  const now = new Date();
+  let t2 = currentTZ === "JST" ? new Date(now.getTime() + 9*3600000) : now;
+  const yyyy = t2.getUTCFullYear();
+  const mm   = String(t2.getUTCMonth()+1).padStart(2,"0");
+  const dd   = String(t2.getUTCDate()).padStart(2,"0");
+  const hh   = String(t2.getUTCHours()).padStart(2,"0");
+  const mi   = String(t2.getUTCMinutes()).padStart(2,"0");
+  return `${yyyy}${mm}${dd}-${hh}${mi}`;
+}
+
+function fmtHMS(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return (h > 0 ? `${h}h` : "") + `${m}m${s}s`;
+}
+
+function formatClock(date) {
+  if (!date) return "";
+  const d = currentTZ === "JST" ? new Date(date.getTime() + 9*3600000) : date;
+  const hh = String(d.getUTCHours()).padStart(2,"0");
+  const mm = String(d.getUTCMinutes()).padStart(2,"0");
+  return `${hh}:${mm}`;
+}
+
+function metsColor(m) {
+  if (m >= 6.0) return "var(--mets-high)";
+  if (m >= 3.0) return "var(--mets-mid)";
+  return "var(--mets-low)";
+}
+
+/* ==========================================================
+   GPX parser
+========================================================== */
 function parseGPX(text) {
   const parser = new DOMParser();
-  const xml = parser.parseFromString(text, "application/xml");
-
+  const xml    = parser.parseFromString(text, "application/xml");
   let pts = [...xml.getElementsByTagName("trkpt")];
   if (pts.length === 0) pts = [...xml.getElementsByTagName("rtept")];
 
   return pts.map(pt => {
     const lat = parseFloat(pt.getAttribute("lat"));
     const lon = parseFloat(pt.getAttribute("lon"));
-const eleNode = pt.getElementsByTagNameNS("*", "ele")[0];
-const ele = eleNode ? parseFloat(eleNode.textContent) : 0;
+    const eleNode  = pt.getElementsByTagNameNS("*", "ele")[0];
+    const ele      = eleNode ? parseFloat(eleNode.textContent) : 0;
     const timeNode = pt.getElementsByTagName("time")[0];
     let time = null;
     if (timeNode) {
@@ -401,71 +788,41 @@ const ele = eleNode ? parseFloat(eleNode.textContent) : 0;
   });
 }
 
-/* ================================
-   距離計算
-================================ */
-function toRad(d) { return d * Math.PI / 180; }
-
-function distance2D(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat/2)**2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-/* ================================
-   Tobler 時刻生成（dt 最小 1 秒）
-================================ */
+/* ==========================================================
+   Tobler time generation
+========================================================== */
 function generateTimesTobler(points, startTime) {
   const result = [];
-  let t = new Date(startTime);
+  let t2 = new Date(startTime);
 
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
+    if (p.alt == null || isNaN(p.alt)) p.alt = i === 0 ? 0 : points[i-1].alt;
 
-    if (p.alt == null || isNaN(p.alt)) {
-      p.alt = i === 0 ? 0 : points[i - 1].alt;
-    }
+    if (i === 0) { result.push({ ...p, time: new Date(t2) }); continue; }
 
-    // ★ 最初の点
-    if (i === 0) {
-      result.push({ ...p, time: new Date(t) });
-      continue;
-    }
-
-    // ★ 2番目の点は必ず points[1] を使う（距離0問題を回避）
-    const p1 = result[i - 1];
+    const p1 = result[i-1];
     const p2 = points[i];
-
-    let d2d = distance2D(p1.lat, p1.lon, p2.lat, p2.lon);
-    let dh = p2.alt - p1.alt;
-    let d = Math.sqrt(d2d*d2d + dh*dh);
-
-    // ★ 距離が 0 の場合は「強制的に 1m」とする
+    let d2d  = dist2D(p1.lat, p1.lon, p2.lat, p2.lon);
+    let dh   = p2.alt - p1.alt;
+    let d    = Math.sqrt(d2d*d2d + dh*dh);
     if (d < 1) d = 1;
 
-    const s = dh / d;
-    const v = 6 * Math.exp(-3.5 * Math.abs(s + 0.05));
+    const s   = dh / d;
+    const v   = 6 * Math.exp(-3.5 * Math.abs(s + 0.05));
+    let dt    = d / (v * 1000 / 3600);
+    if (dt < 1) dt = 1;
+    if (dt > 10) dt = 10;
 
-    let dt = d / (v * 1000 / 3600);
-    if (dt < 1) dt = 1;  // ★ 最低1秒
-if (dt > 10) dt = 10;   // ★ 最大10秒
-
-    t = new Date(t.getTime() + dt * 1000);
-    result.push({ ...p2, time: new Date(t) });
+    t2 = new Date(t2.getTime() + dt * 1000);
+    result.push({ ...p2, time: new Date(t2) });
   }
-
   return result;
 }
 
-
-/* ================================
-   20秒区間生成（start/end を必ず付与）
-================================ */
+/* ==========================================================
+   20-second segment slicing
+========================================================== */
 function nearest(points, target) {
   let best = null, diff = Infinity;
   for (const p of points) {
@@ -479,325 +836,251 @@ function slice20(points) {
   const segs = [];
   if (points.length < 2) return segs;
 
-  let t = new Date(points[0].time);
-  const end = points[points.length - 1].time;
-
+  let t2  = new Date(points[0].time);
+  const end = points[points.length-1].time;
   let isFirst = true;
 
-  while (t < end) {
-
-    let t2 = new Date(t.getTime() + 20000);
-
-    let p1, p2;
+  while (t2 < end) {
+    const t3 = new Date(t2.getTime() + 20000);
 
     if (isFirst) {
-      // ★ 最初の区間だけは絶対に20秒にする
-      p1 = points[0];
-      p2 = points[0];  // 位置は同じでOK（timeだけ20秒後）
+      segs.push({ start: { ...points[0], time: new Date(t2) }, end: { ...points[0], time: new Date(t3) } });
       isFirst = false;
-
-      segs.push({
-        start: { ...p1, time: new Date(t) },
-        end:   { ...p2, time: new Date(t2) }
-      });
-
-      t = t2;
+      t2 = t3;
       continue;
     }
 
-    // ★ 2区間目以降は従来どおり nearest を使う
-    p1 = nearest(points, t);
-    p2 = nearest(points, t2);
+    let p1 = nearest(points, t2);
+    let p2 = nearest(points, t3);
 
-    // p1 と p2 が同じ → 次の点を強制的に使う
     if (p1 === p2) {
       const idx = points.indexOf(p1);
-      if (idx + 1 < points.length) p2 = points[idx + 1];
-      else break;
+      if (idx+1 < points.length) p2 = points[idx+1]; else break;
     }
-
-    // p2.time <= p1.time の場合も次の点へ
     if (p2.time <= p1.time) {
       const idx = points.indexOf(p1);
-      if (idx + 1 < points.length) p2 = points[idx + 1];
-      else break;
+      if (idx+1 < points.length) p2 = points[idx+1]; else break;
     }
 
-    // ★ start/end を必ず付与
-    segs.push({
-      start: { ...p1, time: new Date(t) },
-      end:   { ...p2, time: new Date(t2) }
-    });
-
-    t = t2;
+    segs.push({ start: { ...p1, time: new Date(t2) }, end: { ...p2, time: new Date(t3) } });
+    t2 = t3;
   }
-
   return segs;
 }
 
-
-/* ================================
-   Ci（歩行/走行）
-================================ */
-function Cw(i) {
-  return 280.5*i**5 - 58.7*i**4 - 76.8*i**3 + 51.9*i**2 + 19.6*i + 2.5;
-}
-function Cr(i) {
-  return 155.4*i**5 - 30.4*i**4 - 43.3*i**3 + 46.3*i**2 + 19.5*i + 3.6;
-}
-
-/* ================================
-   METs 計算
-================================ */
-function processSegments(segs, bodymass) {
+/* ==========================================================
+   METs computation
+========================================================== */
+function processSegments(segs, bm) {
   let exCum = 0, kcalCum = 0;
   const results = [];
 
   for (const s of segs) {
-    const d2d = distance2D(s.start.lat, s.start.lon, s.end.lat, s.end.lon);
-    const dh = s.end.alt - s.start.alt;
-    const d = Math.sqrt(d2d*d2d + dh*dh);
+    const d2d = dist2D(s.start.lat, s.start.lon, s.end.lat, s.end.lon);
+    const dh  = s.end.alt - s.start.alt;
+    const d   = Math.sqrt(d2d*d2d + dh*dh);
 
-    if (d < 5) continue;
+    if (d < 5)         continue;
     if (Math.abs(dh) > 5) continue;
 
-    const dt = 20;
-    const v_mps = d / dt;
+    const dt      = 20;
+    const v_mps   = d / dt;
     const running = v_mps >= 1.11;
-
-    const i = Math.max(-0.5, Math.min(0.5, dh / d));
-    const Ci = running ? Cr(i) : Cw(i);
-
-    const Ec = Ci * d;
+    const i       = Math.max(-0.5, Math.min(0.5, dh / d));
+    const Ci      = running ? Cr(i) : Cw(i);
+    const Ec      = Ci * d;
 
     const Ek_net_per_kg = Ec * 0.000239 * (60 / dt);
-    const Ek_net = Ek_net_per_kg * bodymass;
+    const Ek_net        = Ek_net_per_kg * bm;
+    const Ek_rest       = 0.0175 * bm;
+    const Ek_total      = Ek_net + Ek_rest;
 
-    const Ek_rest = 0.0175 * bodymass;
-
-    const Ek_total = Ek_net + Ek_rest;
-
-    let METs = Ek_total / (0.0175 * bodymass);
+    let METs = Ek_total / (0.0175 * bm);
     if (METs < 1) METs = 1;
     METs = Math.min(METs, 18);
 
-    const exDelta = METs * (dt / 3600);
+    const exDelta   = METs * (dt / 3600);
     const kcalDelta = Ek_total * (dt / 60);
 
-    exCum += exDelta;
+    exCum   += exDelta;
     kcalCum += kcalDelta;
 
     results.push({
-      start: s.start.time,   // ★ 開始時刻
-      end:   s.end.time,     // ★ 終了時刻（追加）
-
-      alt: s.start.alt,
+      start: s.start.time,
+      end:   s.end.time,
+      alt:   s.start.alt,
       d, dh, i,
       speed: v_mps * 3.6,
       running,
-      METs,
-      Ek: Ek_total,
-      exCum,
-      kcalCum
+      METs, Ek: Ek_total,
+      exCum, kcalCum
     });
   }
   return results;
 }
 
-/* ================================
-   累積距離
-================================ */
 function addCumulativeDistance(res) {
   let cum = 0;
-  for (const r of res) {
-    cum += r.d;
-    r.cumDist = cum;
-  }
+  for (const r of res) { cum += r.d; r.cumDist = cum; }
 }
 
-/* ================================
-   結果表示
-================================ */
-function showResult(res, stats) {
-  const t = i18n[currentLang];
-
-  if (res.length === 0) {
-    document.getElementById("result").textContent = t.noData;
-    return;
-  }
-
-  const last = res[res.length - 1];
-
-  const dtSec = 20;
-  const dtHour = dtSec / 3600;
-
-  const avgMETs =
-    res.reduce((sum, r) => sum + r.METs, 0) / res.length;
-
-  const maxMETs =
-    res.reduce((max, r) => (r.METs > max ? r.METs : max), 0);
-
-  const totalEx =
-    res.reduce((sum, r) => sum + r.METs * dtHour, 0);
-
-  const totalKcal = last.kcalCum;
-
-  const h = Math.floor(stats.totalTimeSec / 3600);
-  const m = Math.floor((stats.totalTimeSec % 3600) / 60);
-  const s = stats.totalTimeSec % 60;
-  const totalTimeStr = `${h}h${m}m${s}s`;
-
-  const distKm = (stats.totalDist / 1000).toFixed(3);
-  const up = Math.round(stats.totalUp);
-  const down = Math.round(stats.totalDown);
-
-  /* ================================
-     ★ 開始・終了時刻の表示（JST/UTC）
-  ================================= */
-  function formatClock(date) {
-    if (!date) return "";
-
-    let t = date;
-    if (currentTZ === "JST") {
-      t = new Date(date.getTime() + 9 * 3600 * 1000);
-    }
-
-    const hh = String(t.getUTCHours()).padStart(2, "0");
-    const mm = String(t.getUTCMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  }
-
-  let timeRangeStr = "";
-  if (res[0].start && res[res.length - 1].end) {
-    const startStr = formatClock(res[0].start);
-    const endStr   = formatClock(res[res.length - 1].end);
-    timeRangeStr = ` (${startStr} - ${endStr} ${currentTZ})`;
-  }
-
-  /* ================================
-     結果 HTML
-  ================================= */
-  document.getElementById("result").innerHTML = `
-<div style="font-size:1.6em; font-weight:bold; color:#000; margin:0; line-height:1.2;">
-  ${i18n[currentLang].mets}: ${avgMETs.toFixed(1)}
-</div>
-
-<div style="font-size:1.6em; font-weight:bold; color:#000; margin:0; line-height:1.2;">
-  Max METs: ${maxMETs.toFixed(1)}
-</div>
-
-<div style="font-size:1.6em; font-weight:bold; color:#000; margin:0; line-height:1.2;">
-  ${i18n[currentLang].ex}: ${totalEx.toFixed(2)}
-</div>
-
-<div style="font-size:1.0em; color:#000;">
-  ${i18n[currentLang].kcal}: ${Math.round(totalKcal)}
-</div>
-
-<div style="font-size:1.0em; color:#000;">
-  ${t.totalTime}: ${totalTimeStr}${timeRangeStr}
-</div>
-
-<div style="font-size:1.0em; color:#000;">
-  ${t.totalDistance}: ${distKm} km
-</div>
-
-<div style="font-size:1.0em; color:#000;">
-  ${t.ascentDescent}: ${up} m / ${down} m
-</div>
-  `;
-
-  // ★ 枠線 ON
-  document.getElementById("result").style.border = "1px solid #aaa";
+/* ==========================================================
+   2-minute METs smoothing
+========================================================== */
+function twoMinuteMets(arr) {
+  return arr.map((_, i) =>
+    i < 3 ? arr[i] : (arr[i] + arr[i-1] + arr[i-2] + arr[i-3]) / 4
+  );
 }
 
-/* ================================
-   メイン処理
-================================ */
-document.getElementById("processBtn").addEventListener("click", () => {
-  const file = document.getElementById("fileInput").files[0];
-  if (!file) {
-    alert(i18n[currentLang].selectFile);
-    return;
-  }
+/* ==========================================================
+   State
+========================================================== */
+let lastResult = null;
+let chartInstance = null;
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    const text = reader.result;
-    const fmt = detectFormat(text);
+function resetUI() {
+  lastResult = null;
+  document.getElementById("result-card").classList.remove("visible");
+  document.getElementById("graph-card").classList.remove("visible");
+  document.getElementById("action-row").style.display = "none";
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+}
 
-    let points = [];
-    if (fmt === "gpx") points = parseGPX(text);
-    else {
-      alert(i18n[currentLang].unknownFormat);
-      return;
-    }
-
-    const hasAllTime = points.every(p => p.time !== null);
-    const userModel = document.getElementById("timeGenSelect").value;
-
-    let internalModel;
-    if (userModel === "tobler") internalModel = "tobler";
-    else internalModel = hasAllTime ? "none" : "tobler";
-
-    document.getElementById("timeGenSelect").value = internalModel;
-
-    let pointsWithTime;
-    if (internalModel === "none") pointsWithTime = points;
-    else pointsWithTime = generateTimesTobler(points, new Date());
-
-    const segs = slice20(pointsWithTime);
-    const bodymass = getBodyMass();
-    const res = processSegments(segs, bodymass);
-
-    let totalDist = 0;
-    let totalUp = 0;
-    let totalDown = 0;
-    let maxMETs = 0;
-
-    for (const r of res) {
-      totalDist += r.d;
-      if (r.dh > 0) totalUp += r.dh;
-      else totalDown += Math.abs(r.dh);
-      if (r.METs > maxMETs) maxMETs = r.METs;
-    }
-
-    const totalTimeSec = segs.length * 20;
-
-    addCumulativeDistance(res);
-    window.lastResult = res;
-
-    showResult(res, {
-      totalDist,
-      totalUp,
-      totalDown,
-      maxMETs,
-      totalTimeSec
-    });
-  };
-
-  reader.readAsText(file);
+/* ==========================================================
+   File selection
+========================================================== */
+document.getElementById("file-select-btn").addEventListener("click", () => {
+  document.getElementById("file-input").click();
 });
 
-/* ================================
-   Excel 保存
-================================ */
-document.getElementById("saveBtn").addEventListener("click", () => {
-  if (!window.lastResult) {
-    alert("先に計算を実行してください");
-    return;
+document.getElementById("file-input").addEventListener("change", (e) => {
+  resetUI();
+  document.getElementById("time-model-select").value = "none";
+  const f = e.target.files[0];
+  const nameEl = document.getElementById("file-name");
+  if (f) {
+    nameEl.textContent = f.name;
+    nameEl.classList.add("loaded");
+  } else {
+    nameEl.textContent = t("noFile");
+    nameEl.classList.remove("loaded");
+  }
+});
+
+/* ==========================================================
+   Process button
+========================================================== */
+document.getElementById("process-btn").addEventListener("click", () => {
+  const file = document.getElementById("file-input").files[0];
+  if (!file) { alert(t("selectFile")); return; }
+
+  const ensureWeight = (cb) => {
+    if (bodymass > 0) { cb(); return; }
+    showWeightModal((ok) => { if (ok) cb(); });
+  };
+
+  ensureWeight(() => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      if (!text.includes("<gpx")) { alert(t("unknownFormat")); return; }
+
+      let points = parseGPX(text);
+      const hasAllTime = points.every(p => p.time !== null);
+      const userModel  = document.getElementById("time-model-select").value;
+
+      let internalModel;
+      if (userModel === "tobler")  internalModel = "tobler";
+      else internalModel = hasAllTime ? "none" : "tobler";
+
+      document.getElementById("time-model-select").value = internalModel;
+
+      const pointsWithTime = internalModel === "none"
+        ? points
+        : generateTimesTobler(points, new Date());
+
+      const segs = slice20(pointsWithTime);
+      const res  = processSegments(segs, bodymass);
+
+      if (res.length === 0) { alert(t("noData")); return; }
+
+      addCumulativeDistance(res);
+      lastResult = res;
+
+      showResult(res, segs);
+
+      document.getElementById("action-row").style.display = "flex";
+    };
+    reader.readAsText(file);
+  });
+});
+
+/* ==========================================================
+   Show result
+========================================================== */
+function showResult(res, segs) {
+  const last = res[res.length - 1];
+  const dtHour = 20 / 3600;
+
+  const avgMETs  = res.reduce((s, r) => s + r.METs, 0) / res.length;
+  const maxMETs  = res.reduce((m, r) => r.METs > m ? r.METs : m, 0);
+  const totalEx  = res.reduce((s, r) => s + r.METs * dtHour, 0);
+  const totalKcal = last.kcalCum;
+
+  let totalDist = 0, totalUp = 0, totalDown = 0;
+  for (const r of res) {
+    totalDist += r.d;
+    if (r.dh > 0) totalUp += r.dh;
+    else totalDown += Math.abs(r.dh);
   }
 
-  const res = window.lastResult;
+  const totalTimeSec = segs.length * 20;
+  const avgKcalMin   = totalKcal / (totalTimeSec / 60);
 
-  const rows = [
-    ["Index", "Time", "Altitude(m)", "Distance(m)", "Altitude Δ(m)", "Speed(km/h)",
-     "METs", "kcal/min", "Cumulative Dist(m)", "Cumulative Ex", "Cumulative kcal"]
-  ];
+  // Time range
+  let timeRangeText = "";
+  if (res[0].start && res[res.length-1].end) {
+    const s = formatClock(res[0].start);
+    const e = formatClock(res[res.length-1].end);
+    timeRangeText = `${s} – ${e} ${currentTZ}`;
+  }
 
+  // Populate
+  const metsEl = document.getElementById("mets-big-value");
+  metsEl.textContent = avgMETs.toFixed(1);
+  metsEl.style.color = metsColor(avgMETs);
+
+  document.getElementById("mets-max-val").textContent = maxMETs.toFixed(1);
+  document.getElementById("sum-ex").textContent      = totalEx.toFixed(2);
+  document.getElementById("sum-kcal").textContent    = Math.round(totalKcal);
+  document.getElementById("sum-kcalmin").textContent = `${avgKcalMin.toFixed(2)} kcal/min`;
+
+  const timeEl = document.getElementById("sum-time");
+  timeEl.innerHTML = fmtHMS(totalTimeSec)
+    + (timeRangeText ? `<span id="time-range-badge">${timeRangeText}</span>` : "");
+
+  document.getElementById("sum-dist").textContent = `${(totalDist/1000).toFixed(3)} km`;
+  document.getElementById("sum-up").textContent   = `${Math.round(totalUp)} m`;
+  document.getElementById("sum-down").textContent = `${Math.round(totalDown)} m`;
+
+  document.getElementById("result-card").classList.add("visible");
+}
+
+/* ==========================================================
+   Save Excel
+========================================================== */
+document.getElementById("save-btn").addEventListener("click", () => {
+  if (!lastResult) { alert(t("noData")); return; }
+
+  const res = lastResult;
+  const rows = [[
+    "Index","Time","Altitude(m)","Distance(m)","Alt.Delta(m)","Speed(km/h)",
+    "METs","kcal/min","Cumul.Dist(m)","Cumul.Ex","Cumul.kcal"
+  ]];
   res.forEach((r, i) => {
     rows.push([
-      i + 1,
+      i+1,
       r.start.toISOString(),
       r.alt,
       r.d.toFixed(2),
@@ -814,322 +1097,184 @@ document.getElementById("saveBtn").addEventListener("click", () => {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "20sec Data");
-
-  // ★ JST/UTC 切り替えに応じたファイル名
-  XLSX.writeFile(wb, `GPS-METs-Data_${getNowForFilename()}.xlsx`);
+  XLSX.writeFile(wb, `GeoMETs_${getNowForFilename()}.xlsx`);
 });
 
-
-
-/* ================================
-   JST/UTC 切り替え
-================================ */
-let currentTZ = "JST";  // デフォルト
-
-const tzSelect = document.getElementById("tzSelect");
-if (tzSelect) {
-  tzSelect.addEventListener("change", (e) => {
-    currentTZ = e.target.value;
-  });
-}
-
-
-/* ================================
-   ユーティリティ関数
-================================ */
-function getNowForFilename() {
-  const now = new Date();
-
-  let t = now;
-  if (currentTZ === "JST") {
-    t = new Date(now.getTime() + 9 * 3600 * 1000);
-  } else {
-    t = new Date(now.getTime());
-  }
-
-  const yyyy = t.getUTCFullYear();
-  const mm   = String(t.getUTCMonth() + 1).padStart(2, "0");
-  const dd   = String(t.getUTCDate()).padStart(2, "0");
-  const hh   = String(t.getUTCHours()).padStart(2, "0");
-  const mi   = String(t.getUTCMinutes()).padStart(2, "0");
-
-  return `${yyyy}${mm}${dd}-${hh}${mi}`;
-}
-
-
-/* ================================
-   著作権警告（30日サイクル）
-================================ */
-window.addEventListener("load", () => {
-  const lastShown = localStorage.getItem("warningLastShown");
-  const now = Date.now();
-  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-
-  if (!lastShown || now - lastShown > THIRTY_DAYS) {
-    alert("CAUTION: This tool is protected by copyright (©2026 A. Azuma. All Rights Reserved). Unauthorized downloading, copying, or redistribution is prohibited.\n注意：本ツールは著作権により保護されています (©2026 A. Azuma. All Rights Reserved)．無断でのダウンロード，複製，再配布を禁じます．");
-    localStorage.setItem("warningLastShown", now);
-  }
+/* ==========================================================
+   Show / update graph
+========================================================== */
+document.getElementById("graph-btn").addEventListener("click", () => {
+  if (!lastResult) { alert(t("noData")); return; }
+  renderGraph(lastResult);
+  document.getElementById("graph-card").classList.add("visible");
+  document.getElementById("graph-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
 });
 
-/* ================================
-   不正利用抑止（右クリック・ショートカット無効化）
-================================ */
-
-// 右クリック禁止（Canvas 操作には影響なし）
-document.addEventListener('contextmenu', e => e.preventDefault());
-
-// 特定のショートカットだけ無効化
-document.addEventListener('keydown', e => {
-  // Ctrl+S（保存）
-  if (e.ctrlKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-  }
-
-  // Ctrl+P（印刷）
-  if (e.ctrlKey && e.key.toLowerCase() === 'p') {
-    e.preventDefault();
-  }
-
-  // Ctrl+Shift+I（DevTools）
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
-    e.preventDefault();
-  }
-
-  // Ctrl+Shift+C（要素検証）
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'c') {
-    e.preventDefault();
-  }
-
-  // Ctrl+Shift+J（DevTools Console）
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') {
-    e.preventDefault();
-  }
-
-  // F12（DevTools）
-  if (e.key === 'F12') {
-    e.preventDefault();
-  }
-});
-
-
-/* ================================
-   グラフ表示（改良版 + 2分間METs）
-================================ */
-let chart = null;
-
-// ★★★ 2分間METs（4点平均） ★★★
-function twoMinuteMets(arr) {
-  const out = [];
-  for (let i = 0; i < arr.length; i++) {
-    if (i < 3) {
-      // 最初の3点はそのまま（十分な2分間ウィンドウがないため）
-      out.push(arr[i]);
-    } else {
-      out.push((arr[i] + arr[i - 1] + arr[i - 2] + arr[i - 3]) / 4);
-    }
-  }
-  return out;
-}
-
-function resetUI() {
-  window.lastResult = null;
-
-  const resultEl = document.getElementById("result");
-  if (resultEl) {
-    resultEl.innerHTML = "";
-    resultEl.style.border = "none";
-  }
-
-  const graphArea = document.getElementById("graphArea");
-  if (graphArea) graphArea.innerHTML = "";
-
-  if (chart) {
-    chart.destroy();
-    chart = null;
-  }
-}
-
-document.getElementById("graphBtn").addEventListener("click", () => {
-  if (!window.lastResult) {
-    alert("先に計算を実行してください");
-    return;
-  }
-
-  const res = window.lastResult;
-
-  // ★ 30秒刻み（20 → 30 に変更）
-  const labels = res.map((r, i) => ((i * 30) / 60).toFixed(1));
-  const timeMin = res.map((r, i) => (i * 30) / 60);
-  const totalMinutes = timeMin[timeMin.length - 1];
+function renderGraph(res) {
+  const timeMin  = res.map((r, i) => (i * 20) / 60);
+  const totalMin = timeMin[timeMin.length-1];
 
   let lineWidth = 2;
-  if (totalMinutes > 60) lineWidth *= 0.5;
-  else if (totalMinutes > 30) lineWidth *= 0.75;
+  if (totalMin > 60)       lineWidth = 1;
+  else if (totalMin > 30)  lineWidth = 1.5;
 
-  const metsRaw = res.map((r, i) => ({ x: timeMin[i], y: r.METs }));
+  const metsRaw  = res.map((r, i) => ({ x: timeMin[i], y: r.METs }));
   const altsData = res.map((r, i) => ({ x: timeMin[i], y: r.alt }));
+  const rawArr   = res.map(r => r.METs);
 
-  // Raw METs の配列（2分間値用）
-  const rawArray = res.map(r => r.METs);
-
-  // ★★★ 30分以上なら 2分間METs を計算 ★★★
-  let mets2min = null;
-  if (totalMinutes >= 30) {
-    const twoMinArray = twoMinuteMets(rawArray);
-    mets2min = twoMinArray.map((v, i) => ({ x: timeMin[i], y: v }));
-  }
-
-  document.getElementById("graphArea").innerHTML = `
-    <canvas id="graphCanvas" height="200"></canvas>
-    <button id="saveGraphBtn"></button>
-  `;
-  applyI18n();
-
-  const ctx = document.getElementById("graphCanvas").getContext("2d");
-
-  if (chart) chart.destroy();
-
-  const maxMets = Math.max(...rawArray);
-  const maxAlt  = Math.max(...res.map(r => r.alt));
-
-  // datasets を動的に構築
-  const datasets = [];
-
-  // Raw METs（薄い青）
-  datasets.push({
+  const datasets = [{
     label: "METs (Raw)",
     data: metsRaw,
-    borderColor: "rgba(0, 102, 255, 0.25)",
+    borderColor: "rgba(26,111,181,0.25)",
     borderWidth: lineWidth,
     pointRadius: 0,
     yAxisID: "y1"
-  });
+  }];
 
-  // ★★★ 2分間METs（濃い青） ★★★
-  if (mets2min) {
+  if (totalMin >= 30) {
+    const smooth = twoMinuteMets(rawArr);
     datasets.push({
-      label: "METs (2 min)",
-      data: mets2min,
-      borderColor: "rgba(0, 102, 255, 1)",
+      label: "METs (2 min avg)",
+      data: smooth.map((v, i) => ({ x: timeMin[i], y: v })),
+      borderColor: "rgba(26,111,181,1)",
       borderWidth: lineWidth + 1,
       pointRadius: 0,
       yAxisID: "y1"
     });
   }
 
-  // Altitude（従来どおり）
   datasets.push({
     label: "Altitude (m)",
     data: altsData,
-    borderColor: "green",
+    borderColor: "var(--mets-mid)",
     borderWidth: lineWidth,
     pointRadius: 0,
     yAxisID: "y2"
   });
 
-  chart = new Chart(ctx, {
+  const maxMets = Math.max(...rawArr);
+  const maxAlt  = Math.max(...res.map(r => r.alt));
+
+  if (chartInstance) chartInstance.destroy();
+
+  const ctx = document.getElementById("graph-canvas").getContext("2d");
+  chartInstance = new Chart(ctx, {
     type: "line",
-    data: {
-      labels: labels,
-      datasets: datasets
-    },
+    data: { datasets },
     options: {
       responsive: true,
+      parsing: false,
       scales: {
         x: {
           type: "linear",
           title: { display: true, text: "Time (min)", color: "#000" },
-          grid: { display: false },
-          ticks: {
-            stepSize: 10,
-            tickLength: 10,
-            color: "#000",
-            maxRotation: 0,
-            minRotation: 0
-          },
+          grid:  { display: false },
+          ticks: { stepSize: 10, maxRotation: 0, color: "#000" },
           border: { width: 1.3, color: "#000" }
         },
-
         y1: {
           position: "left",
           title: { display: true, text: "METs", color: "#000" },
-          grid: { display: false },
-          ticks: { tickLength: 8, color: "#000" },
+          grid:  { display: false },
+          ticks: { color: "#000" },
           border: { width: 1.3, color: "#000" },
           suggestedMax: maxMets * 1.1
         },
-
         y2: {
           position: "right",
           title: { display: true, text: "Altitude (m)", color: "#000" },
-          grid: { display: false },
-          ticks: { tickLength: 8, color: "#000" },
+          grid:  { display: false },
+          ticks: { color: "#000" },
           border: { width: 1.3, color: "#000" },
           suggestedMax: maxAlt * 1.1
         }
       },
-
       plugins: {
         legend: {
           labels: {
-            usePointStyle: true,
-            pointStyle: "line",
-            pointStyleWidth: 35,
-            boxWidth: 35,
-            boxHeight: 2
+            usePointStyle:    true,
+            pointStyle:       "line",
+            pointStyleWidth:  30,
+            boxHeight:        2
           }
         }
       }
     },
-
     plugins: [{
-      afterDraw: (chart) => {
-        const ctx = chart.ctx;
-        const chartArea = chart.chartArea;
-
+      afterDraw(chart) {
+        const { ctx, chartArea } = chart;
         ctx.save();
         ctx.strokeStyle = "#000";
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth   = 1.3;
         ctx.beginPath();
-        ctx.moveTo(chartArea.left, chartArea.top);
+        ctx.moveTo(chartArea.left,  chartArea.top);
         ctx.lineTo(chartArea.right, chartArea.top);
         ctx.stroke();
         ctx.restore();
       }
     }]
   });
+}
 
-  document.getElementById("saveGraphBtn").addEventListener("click", () => {
-    const canvas = document.getElementById("graphCanvas");
+/* ==========================================================
+   Save graph as PNG
+========================================================== */
+document.getElementById("save-graph-btn").addEventListener("click", () => {
+  const canvas = document.getElementById("graph-canvas");
+  const tmp    = document.createElement("canvas");
+  const tctx   = tmp.getContext("2d");
+  tmp.width    = canvas.width;
+  tmp.height   = canvas.height;
+  tctx.fillStyle = "#ffffff";
+  tctx.fillRect(0, 0, tmp.width, tmp.height);
+  tctx.drawImage(canvas, 0, 0);
 
-    const tempCanvas = document.createElement("canvas");
-    const tctx = tempCanvas.getContext("2d");
-
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-
-    tctx.fillStyle = "#ffffff";
-    tctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-    tctx.drawImage(canvas, 0, 0);
-
-    const url = tempCanvas.toDataURL("image/png");
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `figure_${getNowForFilename()}.png`;
-    a.click();
-  });
-
+  const a    = document.createElement("a");
+  a.href     = tmp.toDataURL("image/png");
+  a.download = `GeoMETs_figure_${getNowForFilename()}.png`;
+  a.click();
 });
 
-document.getElementById("reloadBtn").addEventListener("click", () => {
-  location.reload();
+/* ==========================================================
+   Reset
+========================================================== */
+document.getElementById("reload-btn").addEventListener("click", () => {
+  resetUI();
+  document.getElementById("file-input").value = "";
+  const nameEl = document.getElementById("file-name");
+  nameEl.textContent = t("noFile");
+  nameEl.classList.remove("loaded");
+  document.getElementById("time-model-select").value = "none";
 });
 
+/* ==========================================================
+   Anti-copy / copyright
+========================================================== */
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && ["s","p","u"].includes(k)) e.preventDefault();
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && ["i","c","j"].includes(k)) e.preventDefault();
+  if (e.key === "F12") e.preventDefault();
+});
 
+function checkCopyright() {
+  const last = parseInt(localStorage.getItem("geomets_warn") || "0");
+  if (Date.now() - last > 30 * 86400000) {
+    alert("CAUTION: This tool is protected by copyright (©2026 A. Azuma. All Rights Reserved). Unauthorized downloading, copying, or redistribution is prohibited.\n注意：本ツールは著作権により保護されています (©2026 A. Azuma. All Rights Reserved)．無断でのダウンロード，複製，再配布を禁じます．");
+    localStorage.setItem("geomets_warn", Date.now());
+  }
+}
 
+/* ==========================================================
+   Init
+========================================================== */
+window.addEventListener("load", () => {
+  checkCopyright();
+  updateWeightDisplay();
+  applyLang();
+  if (bodymass <= 0) showWeightModal(() => {});
+});
 </script>
-
 </body>
 </html>
