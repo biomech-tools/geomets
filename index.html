@@ -939,10 +939,12 @@ function twoMinuteMets(arr) {
    State
 ========================================================== */
 let lastResult = null;
+let lastTotalSegs = 0;
 let chartInstance = null;
 
 function resetUI() {
   lastResult = null;
+  lastTotalSegs = 0;
   document.getElementById("result-card").classList.remove("visible");
   document.getElementById("graph-card").classList.remove("visible");
   document.getElementById("action-row").style.display = "none";
@@ -1009,6 +1011,7 @@ document.getElementById("process-btn").addEventListener("click", () => {
 
       addCumulativeDistance(res);
       lastResult = res;
+      lastTotalSegs = segs.length;
 
       showResult(res, segs);
 
@@ -1104,7 +1107,7 @@ document.getElementById("save-btn").addEventListener("click", () => {
   const avgMETs      = res.reduce((s, r) => s + r.METs, 0) / res.length;
   const maxMETs      = res.reduce((m, r) => r.METs > m ? r.METs : m, 0);
   const last         = res[res.length - 1];
-  const totalTimeSec = res.length * 30;
+  const totalTimeSec = lastTotalSegs * 30;
   let totalDist = 0, totalUp = 0, totalDown = 0;
   for (const r of res) {
     totalDist += r.d;
@@ -1169,7 +1172,8 @@ document.getElementById("graph-btn").addEventListener("click", () => {
 });
 
 function renderGraph(res) {
-  const timeMin  = res.map((r, i) => (i * 30) / 60);
+  const t0 = res[0].start.getTime();
+  const timeMin  = res.map(r => (r.start.getTime() - t0) / 60000);
   const totalMin = timeMin[timeMin.length-1];
 
   let lineWidth = 2;
